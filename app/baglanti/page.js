@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Fingerprint, HeartHandshake, Radio } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-const DISTANCE_TO_CONNECT = 0.055;
+const DISTANCE_TO_CONNECT = 0.07;
 const BROADCAST_INTERVAL = 80;
 
 function createSafeId() {
@@ -100,9 +100,9 @@ export default function ConnectionPage() {
     const ny = (mine.ny + partner.ny) / 2;
     pulse.style.left = `${nx * 100}%`;
     pulse.style.top = `${ny * 100}%`;
-    pulse.classList.remove("connection-pulse-run");
+    pulse.classList.remove("connection-burst-run");
     void pulse.offsetWidth;
-    pulse.classList.add("connection-pulse-run");
+    pulse.classList.add("connection-burst-run");
   }
 
   function sendPoint(point, force = false) {
@@ -209,7 +209,18 @@ export default function ConnectionPage() {
 
       <FingerVisual refEl={myFingerRef} mine />
       <FingerVisual refEl={partnerFingerRef} />
-      <div ref={pulseRef} className="connection-pulse pointer-events-none absolute z-30" />
+      <div ref={pulseRef} className="connection-burst pointer-events-none absolute z-30">
+        <span className="connection-burst-core" />
+        <span className="connection-burst-ring connection-burst-ring-one" />
+        <span className="connection-burst-ring connection-burst-ring-two" />
+        <span className="connection-heart connection-heart-one">♥</span>
+        <span className="connection-heart connection-heart-two">♥</span>
+        <span className="connection-heart connection-heart-three">♥</span>
+        <span className="connection-heart connection-heart-four">♥</span>
+        <span className="connection-spark connection-spark-one" />
+        <span className="connection-spark connection-spark-two" />
+        <span className="connection-spark connection-spark-three" />
+      </div>
     </section>
   );
 }

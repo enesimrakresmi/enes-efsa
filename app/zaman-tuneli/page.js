@@ -137,9 +137,6 @@ export default function TimelinePage() {
                 <CalendarHeart size={15} className="text-roseDeep" />
                 Zaman Tüneli
               </div>
-              <p className="mt-3 text-sm leading-6 text-gray-500">
-                En yeni anılar önce görünür.
-              </p>
             </div>
 
             <Link href="/zaman-tuneli/yeni" className="primary-action focus-ring w-full sm:w-auto">

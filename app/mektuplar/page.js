@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookHeart, LockKeyhole, LogOut, PenLine } from "lucide-react";
+import { LockKeyhole, LogOut, Mail, PenLine, Unlock, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import ExpandableText from "@/components/ExpandableText";
 
@@ -17,8 +17,22 @@ function mergeUniqueItems(current, nextItems) {
   return [...current, ...nextItems.filter((item) => !existingIds.has(item.id))];
 }
 
-function getPostClasses(author) {
-  return author === "Efsa" ? "feed-card-efsa" : "";
+function formatCountdown(value, now) {
+  const target = new Date(value).getTime();
+  const diff = Math.max(0, target - now);
+
+  if (diff <= 0) return "Açılabilir";
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days} gün ${hours} saat`;
+  if (hours > 0) return `${hours} saat ${minutes} dk`;
+  if (minutes > 0) return `${minutes} dk ${seconds} sn`;
+  return `${seconds} sn`;
 }
 
 function getAuthorBadgeClasses(author) {
@@ -29,21 +43,34 @@ function getAuthorBadgeClasses(author) {
   return "border-white/10 bg-black/70 text-gray-100";
 }
 
-export default function JournalPage() {
+function getRecipientBadgeClasses(recipient) {
+  if (recipient === "Ortak") {
+    return "border-roseSoft/35 bg-roseSoft/10 text-roseSoft";
+  }
+
+  if (recipient === "Efsa") {
+    return "border-[#ff8aaa]/35 bg-[#ff8aaa]/12 text-[#ffb3c7]";
+  }
+
+  return "border-white/10 bg-black/60 text-gray-200";
+}
+
+export default function LettersPage() {
   const [pin, setPin] = useState("");
   const [currentUser, setCurrentUser] = useState("");
-  const [posts, setPosts] = useState([]);
+  const [letters, setLetters] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now());
   const sentinelRef = useRef(null);
   const pageRef = useRef(0);
   const loadingRef = useRef(false);
 
   const unlocked = Boolean(currentUser);
 
-  const fetchPosts = useCallback(async ({ reset = false } = {}) => {
+  const fetchLetters = useCallback(async ({ reset = false } = {}) => {
     if (!supabase) {
       setHasMore(false);
       setInitialLoaded(true);
@@ -61,8 +88,9 @@ export default function JournalPage() {
 
     setLoading(true);
     const { data, error: fetchError } = await supabase
-      .from("posts")
-      .select("id, author, content, created_at")
+      .from("letters")
+      .select("id, author, recipient, title, content, open_at, created_at")
+      .order("open_at", { ascending: false })
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -76,36 +104,41 @@ export default function JournalPage() {
     }
 
     const nextItems = data || [];
-    setPosts((current) => (reset ? nextItems : mergeUniqueItems(current, nextItems)));
+    setLetters((current) => (reset ? nextItems : mergeUniqueItems(current, nextItems)));
     pageRef.current = nextPage + 1;
     setHasMore(nextItems.length === PAGE_SIZE);
     setError("");
   }, []);
 
   useEffect(() => {
-    const savedUser = window.localStorage.getItem("journal-user");
+    const savedUser = window.localStorage.getItem("letters-user");
     if (savedUser === "Enes" || savedUser === "Efsa") setCurrentUser(savedUser);
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (!unlocked) return;
     pageRef.current = 0;
     setHasMore(true);
-    fetchPosts({ reset: true });
-  }, [fetchPosts, unlocked]);
+    fetchLetters({ reset: true });
+  }, [fetchLetters, unlocked]);
 
   useEffect(() => {
     if (!unlocked || !supabase) return;
 
     const channel = supabase
-      .channel("journal-posts")
+      .channel("secret-letters")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
+        { event: "*", schema: "public", table: "letters" },
         () => {
           pageRef.current = 0;
           setHasMore(true);
-          fetchPosts({ reset: true });
+          fetchLetters({ reset: true });
         }
       )
       .subscribe();
@@ -113,7 +146,7 @@ export default function JournalPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchPosts, unlocked]);
+  }, [fetchLetters, unlocked]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -121,14 +154,14 @@ export default function JournalPage() {
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) fetchPosts();
+        if (entries[0]?.isIntersecting) fetchLetters();
       },
       { rootMargin: "520px" }
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fetchPosts, hasMore, initialLoaded, unlocked]);
+  }, [fetchLetters, hasMore, initialLoaded, unlocked]);
 
   function unlock(event) {
     event.preventDefault();
@@ -136,7 +169,7 @@ export default function JournalPage() {
 
     if (user) {
       setCurrentUser(user);
-      window.localStorage.setItem("journal-user", user);
+      window.localStorage.setItem("letters-user", user);
       setPin("");
       setError("");
       return;
@@ -147,11 +180,12 @@ export default function JournalPage() {
 
   function logout() {
     setCurrentUser("");
-    setPosts([]);
+    setPin("");
+    setLetters([]);
     setInitialLoaded(false);
     setHasMore(true);
     pageRef.current = 0;
-    window.localStorage.removeItem("journal-user");
+    window.localStorage.removeItem("letters-user");
   }
 
   if (!unlocked) {
@@ -161,9 +195,9 @@ export default function JournalPage() {
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
             <LockKeyhole size={22} />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-50">Gizli alan</h1>
+          <h1 className="text-2xl font-semibold text-gray-50">Gizli mektuplar</h1>
           <p className="mt-2 text-sm leading-6 text-gray-400">
-            Şifreni gir, günlük otomatik olarak Enes veya Efsa hesabıyla açılır.
+            Listeyi görmek için PIN gir. Zamanı gelen mektuplar tek dokunuşla açılır.
           </p>
           <input
             value={pin}
@@ -187,17 +221,20 @@ export default function JournalPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <div className="page-kicker">
-                <BookHeart size={15} className="text-roseDeep" />
-                Ortak Günlük
+                <Mail size={15} className="text-roseDeep" />
+                Gizli Mektuplar
               </div>
+              <p className="mt-3 text-sm leading-6 text-gray-500">
+                Geleceğe bırakılan, zamanı gelince açılan küçük mektuplar.
+              </p>
             </div>
 
             <div className="grid gap-2 sm:flex">
-              <Link href="/gunluk/yeni" className="primary-action focus-ring">
+              <Link href="/mektuplar/yeni" className="primary-action focus-ring w-full sm:w-auto">
                 <PenLine size={16} />
-                Yeni Yazı
+                Yeni Mektup
               </Link>
-              <button onClick={logout} className="ghost-action focus-ring">
+              <button type="button" onClick={logout} className="ghost-action focus-ring justify-center">
                 <LogOut size={16} />
                 Çıkış
               </button>
@@ -217,48 +254,80 @@ export default function JournalPage() {
           )}
 
           <div className="space-y-4">
-            {initialLoaded && posts.length === 0 && !error && (
+            {initialLoaded && letters.length === 0 && !error && (
               <div className="page-panel p-7 text-center text-gray-400">
-                Henüz günlük yazısı yok.
+                Henüz mektup yazılmamış.
               </div>
             )}
 
-            {posts.map((post) => (
-              <article
-                key={post.id}
-                className={`feed-card content-visibility-auto p-4 sm:p-6 ${getPostClasses(post.author)}`}
-              >
-                <ExpandableText
-                  text={post.content}
-                  limit={360}
-                  className="leading-7 text-gray-200"
-                />
-                <div className="mt-5 flex flex-wrap gap-x-3 gap-y-2 text-sm text-gray-500">
-                  <span className={`rounded-lg border px-3 py-1 text-xs ${getAuthorBadgeClasses(post.author)}`}>
-                    {post.author}
-                  </span>
-                  <span className="py-1">
-                    {new Intl.DateTimeFormat("tr-TR", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(new Date(post.created_at))}
-                  </span>
-                </div>
-              </article>
+            {letters.map((letter) => (
+              <LetterCard key={letter.id} letter={letter} now={now} currentUser={currentUser} />
             ))}
           </div>
 
           <div ref={sentinelRef} className="h-8" />
 
           {loading && initialLoaded && (
-            <p className="mt-5 text-center text-sm text-gray-500">Günlükler yükleniyor...</p>
+            <p className="mt-5 text-center text-sm text-gray-500">Mektuplar yükleniyor...</p>
           )}
 
-          {!hasMore && posts.length > 0 && (
-            <p className="mt-5 text-center text-sm text-gray-600">Tüm günlükler yüklendi.</p>
+          {!hasMore && letters.length > 0 && (
+            <p className="mt-5 text-center text-sm text-gray-600">Tüm mektuplar yüklendi.</p>
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+function LetterCard({ letter, now, currentUser }) {
+  const [opened, setOpened] = useState(false);
+  const isTimeOpen = new Date(letter.open_at).getTime() <= now;
+  const canCurrentUserOpen = letter.recipient === "Ortak" || letter.recipient === currentUser;
+  const countdown = formatCountdown(letter.open_at, now);
+
+  return (
+    <article
+      className={`feed-card content-visibility-auto p-4 sm:p-6 ${
+        letter.author === "Efsa" ? "feed-card-efsa" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-lg border px-3 py-1 text-xs ${getAuthorBadgeClasses(letter.author)}`}>
+          <UserRound size={12} className="mr-1 inline" />
+          {letter.author}
+        </span>
+        <span className={`rounded-lg border px-3 py-1 text-xs ${getRecipientBadgeClasses(letter.recipient)}`}>
+          Kime: {letter.recipient}
+        </span>
+      </div>
+
+      <h2 className="emoji-safe mt-4 break-words text-[1.35rem] font-semibold leading-tight text-gray-50 [overflow-wrap:anywhere] sm:text-2xl">
+        {letter.title}
+      </h2>
+
+      {opened ? (
+        <div className="mt-4">
+          <ExpandableText text={letter.content} limit={420} className="leading-7 text-gray-200" />
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
+          {!isTimeOpen ? (
+            <p className="text-sm leading-6 text-gray-500">
+              Bu mektup henüz açılmadı. Geri sayım: <span className="text-roseSoft">{countdown}</span>
+            </p>
+          ) : !canCurrentUserOpen ? (
+            <p className="text-sm leading-6 text-gray-500">
+              Bu mektup sadece {letter.recipient} tarafından açılabilir.
+            </p>
+          ) : (
+            <button type="button" onClick={() => setOpened(true)} className="primary-action focus-ring w-full sm:w-auto">
+              <Unlock size={16} />
+              Açmak için tıkla
+            </button>
+          )}
+        </div>
+      )}
+    </article>
   );
 }

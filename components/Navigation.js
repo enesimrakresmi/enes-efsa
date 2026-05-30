@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookHeart, Clock, Heart, HeartHandshake } from "lucide-react";
+import { BookHeart, CircleHelp, Clock, Heart, HeartHandshake, Mail } from "lucide-react";
 
 const items = [
   { href: "/", label: "Ana Sayfa", shortLabel: "Ana", icon: Heart },
   { href: "/zaman-tuneli", label: "Zaman Tüneli", shortLabel: "Anılar", icon: Clock },
   { href: "/gunluk", label: "Ortak Günlük", shortLabel: "Günlük", icon: BookHeart },
+  { href: "/sorular", label: "Sorular", shortLabel: "Soru", icon: CircleHelp },
+  { href: "/mektuplar", label: "Gizli Mektuplar", shortLabel: "Mektup", icon: Mail },
   { href: "/baglanti", label: "Canlı Bağlantı", shortLabel: "Bağ", icon: HeartHandshake }
 ];
 
@@ -16,8 +18,8 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 rounded-lg border border-white/10 bg-[#101219] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
+      <nav className="fixed bottom-3 left-2 right-2 z-50 md:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-6 rounded-lg border border-white/10 bg-[#101219] p-1 shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
           {items.map((item) => {
             const Icon = item.icon;
             const active =
@@ -29,7 +31,7 @@ export default function Navigation() {
                 key={item.href}
                 href={item.href}
                 aria-label={item.label}
-                className={`focus-ring relative flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition ${
+                className={`focus-ring relative flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[8px] font-semibold transition ${
                   active
                     ? "bg-[#1b2230] text-gray-50"
                     : "text-gray-500 hover:bg-[#151922] hover:text-gray-200"
@@ -41,13 +43,13 @@ export default function Navigation() {
                   }`}
                 />
                 <Icon
-                  size={21}
+                  size={19}
                   strokeWidth={active ? 2.35 : 1.8}
                   className={`shrink-0 transition ${
                     active ? "text-roseSoft" : "text-current"
                   }`}
                 />
-                <span className="w-full truncate px-1 text-center">
+                <span className="w-full truncate px-0.5 text-center">
                   {item.shortLabel}
                 </span>
               </Link>
