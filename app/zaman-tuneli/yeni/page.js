@@ -225,7 +225,7 @@ export default function NewMemoryPage() {
     }));
   }
 
-  function choosePhoto(file) {
+  async function choosePhoto(file) {
     if (!file) return;
 
     if (!canUseFileAsImage(file)) {
@@ -238,10 +238,18 @@ export default function NewMemoryPage() {
       return;
     }
 
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-    setMessage("");
+    setMessage("Fotoğraf hazırlanıyor...");
+
+    try {
+      const clonedPhoto = await cloneOriginalFile(file);
+
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoFile(clonedPhoto);
+      setPhotoPreview(URL.createObjectURL(clonedPhoto.blob));
+      setMessage("");
+    } catch {
+      setMessage("Telefon fotoğraf iznini vermedi. Fotoğrafı Galeri uygulamasından seçip tekrar deneyin.");
+    }
   }
 
   function clearPhoto() {
@@ -257,10 +265,10 @@ export default function NewMemoryPage() {
     let preparedPhoto;
 
     try {
-      preparedPhoto = await compressImage(photoFile);
+      preparedPhoto = await compressImage(photoFile.blob);
     } catch {
       setMessage("Fotoğraf sıkıştırılamadı, orijinal hali yükleniyor...");
-      preparedPhoto = await cloneOriginalFile(photoFile);
+      preparedPhoto = photoFile;
     }
 
     const path = `${author.toLowerCase()}/${Date.now()}-${createSafeId()}.${preparedPhoto.extension}`;
