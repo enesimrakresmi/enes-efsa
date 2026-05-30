@@ -31,8 +31,7 @@ export default function NewQuestionPage() {
     setMessage("");
 
     const { error } = await supabase.from("couple_questions").insert({
-      question: value,
-      sort_order: Date.now()
+      question: value
     });
 
     setLoading(false);
