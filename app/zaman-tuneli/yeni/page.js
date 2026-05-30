@@ -25,10 +25,54 @@ const IMAGE_OUTPUTS = [
   { type: "image/webp", extension: "webp", quality: 0.82 },
   { type: "image/jpeg", extension: "jpg", quality: 0.84 }
 ];
+const ACCEPTED_IMAGE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "heic",
+  "heif"
+]);
 
 function createSafeId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function getFileExtension(file) {
+  const fromName = file.name?.split(".").pop()?.toLowerCase();
+  if (fromName && ACCEPTED_IMAGE_EXTENSIONS.has(fromName)) {
+    return fromName === "jpeg" ? "jpg" : fromName;
+  }
+
+  const fromType = file.type?.split("/").pop()?.toLowerCase();
+  if (fromType && ACCEPTED_IMAGE_EXTENSIONS.has(fromType)) {
+    return fromType === "jpeg" ? "jpg" : fromType;
+  }
+
+  return "jpg";
+}
+
+function getContentType(file) {
+  if (file.type?.startsWith("image/")) return file.type;
+
+  const extension = getFileExtension(file);
+  const types = {
+    jpg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    heic: "image/heic",
+    heif: "image/heif"
+  };
+
+  return types[extension] || "image/jpeg";
+}
+
+function canUseFileAsImage(file) {
+  if (file.type?.startsWith("image/")) return true;
+  return ACCEPTED_IMAGE_EXTENSIONS.has(getFileExtension(file));
 }
 
 function loadImage(file) {
@@ -154,7 +198,7 @@ export default function NewMemoryPage() {
   function choosePhoto(file) {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!canUseFileAsImage(file)) {
       setMessage("Lütfen sadece fotoğraf dosyası seçin.");
       return;
     }
@@ -180,7 +224,18 @@ export default function NewMemoryPage() {
     if (!photoFile) return null;
 
     setMessage("Fotoğraf telefona uygun hale getiriliyor...");
-    const preparedPhoto = await compressImage(photoFile);
+    let preparedPhoto;
+
+    try {
+      preparedPhoto = await compressImage(photoFile);
+    } catch {
+      preparedPhoto = {
+        blob: photoFile,
+        contentType: getContentType(photoFile),
+        extension: getFileExtension(photoFile)
+      };
+    }
+
     const path = `${author.toLowerCase()}/${Date.now()}-${createSafeId()}.${preparedPhoto.extension}`;
 
     setMessage("Fotoğraf yükleniyor...");
