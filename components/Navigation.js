@@ -15,38 +15,92 @@ export default function Navigation() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full border-t border-white/10 bg-night/94 px-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:bottom-auto md:top-0 md:h-screen md:w-24 md:border-r md:border-t-0 md:px-0 md:py-6">
-      <div className="mx-auto grid max-w-md grid-cols-4 gap-1 md:flex md:h-full md:flex-col md:items-center md:justify-center md:gap-3">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+    <>
+      <nav className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-4 rounded-lg border border-white/10 bg-[#101219]/92 p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+          {items.map((item) => {
+            const Icon = item.icon;
+            const active =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-label={item.label}
-              title={item.label}
-              className={`focus-ring group flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 text-[10px] font-medium transition md:h-16 md:w-16 md:px-0 ${
-                active
-                  ? "border-roseSoft/50 bg-roseSoft/12 text-roseSoft shadow-glow"
-                  : "border-transparent text-gray-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-gray-100"
-              }`}
-            >
-              <Icon
-                size={21}
-                strokeWidth={active ? 2.4 : 1.8}
-                className="shrink-0 transition group-hover:scale-105 md:h-6 md:w-6"
-              />
-              <span className="w-full truncate text-center md:hidden">
-                {item.shortLabel}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={item.label}
+                className={`focus-ring relative flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition ${
+                  active
+                    ? "bg-white/[0.07] text-gray-50"
+                    : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-1 w-1 rounded-full transition ${
+                    active ? "bg-roseSoft opacity-100" : "bg-transparent opacity-0"
+                  }`}
+                />
+                <Icon
+                  size={21}
+                  strokeWidth={active ? 2.35 : 1.8}
+                  className={`shrink-0 transition ${
+                    active ? "text-roseSoft" : "text-current"
+                  }`}
+                />
+                <span className="w-full truncate px-1 text-center">
+                  {item.shortLabel}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      <nav className="fixed left-0 top-0 z-50 hidden h-screen w-24 border-r border-white/10 bg-[#0b0c10]/88 backdrop-blur-xl md:block">
+        <div className="flex h-full flex-col items-center py-6">
+          <Link
+            href="/"
+            aria-label="Ana Sayfa"
+            className="focus-ring flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-roseSoft"
+          >
+            <Heart size={23} fill="currentColor" />
+          </Link>
+
+          <div className="mt-12 flex flex-1 flex-col items-center gap-3">
+            {items.map((item) => {
+              const Icon = item.icon;
+              const active =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href));
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-label={item.label}
+                  title={item.label}
+                  className={`focus-ring group relative flex h-14 w-14 items-center justify-center rounded-lg transition ${
+                    active
+                      ? "bg-white/[0.07] text-gray-50"
+                      : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`absolute -left-5 h-7 w-1 rounded-r-full transition ${
+                      active ? "bg-roseSoft opacity-100" : "opacity-0"
+                    }`}
+                  />
+                  <Icon
+                    size={23}
+                    strokeWidth={active ? 2.4 : 1.8}
+                    className={active ? "text-roseSoft" : "text-current"}
+                  />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
+    </>
   );
 }

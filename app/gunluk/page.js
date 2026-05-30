@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BookHeart, LockKeyhole, LogOut, PenLine } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import EmojiText from "@/components/EmojiText";
 
+const PAGE_SIZE = 8;
 const PIN_USERS = {
   "3773": "Efsa",
   "1453": "Enes"
 };
+
+function mergeUniqueItems(current, nextItems) {
+  const existingIds = new Set(current.map((item) => item.id));
+  return [...current, ...nextItems.filter((item) => !existingIds.has(item.id))];
+}
 
 function getPostClasses(author) {
   if (author === "Efsa") return "border-[#ff8aaa]/25 bg-[#ff8aaa]/8";
@@ -27,9 +34,54 @@ export default function JournalPage() {
   const [pin, setPin] = useState("");
   const [currentUser, setCurrentUser] = useState("");
   const [posts, setPosts] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
+  const sentinelRef = useRef(null);
+  const pageRef = useRef(0);
+  const loadingRef = useRef(false);
 
   const unlocked = Boolean(currentUser);
+
+  const fetchPosts = useCallback(async ({ reset = false } = {}) => {
+    if (!supabase) {
+      setHasMore(false);
+      setInitialLoaded(true);
+      setLoading(false);
+      setError("Supabase ortam değişkenleri tanımlı değil.");
+      return;
+    }
+
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    const nextPage = reset ? 0 : pageRef.current;
+    const from = nextPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    setLoading(true);
+    const { data, error: fetchError } = await supabase
+      .from("posts")
+      .select("id, author, content, created_at")
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    loadingRef.current = false;
+    setLoading(false);
+    setInitialLoaded(true);
+
+    if (fetchError) {
+      setError(fetchError.message);
+      return;
+    }
+
+    const nextItems = data || [];
+    setPosts((current) => (reset ? nextItems : mergeUniqueItems(current, nextItems)));
+    pageRef.current = nextPage + 1;
+    setHasMore(nextItems.length === PAGE_SIZE);
+    setError("");
+  }, []);
 
   useEffect(() => {
     const savedUser = window.localStorage.getItem("journal-user");
@@ -38,8 +90,10 @@ export default function JournalPage() {
 
   useEffect(() => {
     if (!unlocked) return;
-    fetchPosts();
-  }, [unlocked]);
+    pageRef.current = 0;
+    setHasMore(true);
+    fetchPosts({ reset: true });
+  }, [fetchPosts, unlocked]);
 
   useEffect(() => {
     if (!unlocked || !supabase) return;
@@ -49,34 +103,33 @@ export default function JournalPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
-        () => fetchPosts()
+        () => {
+          pageRef.current = 0;
+          setHasMore(true);
+          fetchPosts({ reset: true });
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [unlocked]);
+  }, [fetchPosts, unlocked]);
 
-  async function fetchPosts() {
-    if (!supabase) {
-      setError("Supabase ortam değişkenleri tanımlı değil.");
-      return;
-    }
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore || !initialLoaded || !unlocked) return;
 
-    const { data, error: fetchError } = await supabase
-      .from("posts")
-      .select("id, author, content, created_at")
-      .order("created_at", { ascending: false });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchPosts();
+      },
+      { rootMargin: "520px" }
+    );
 
-    if (fetchError) {
-      setError(fetchError.message);
-      return;
-    }
-
-    setPosts(data || []);
-    setError("");
-  }
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [fetchPosts, hasMore, initialLoaded, unlocked]);
 
   function unlock(event) {
     event.preventDefault();
@@ -96,19 +149,22 @@ export default function JournalPage() {
   function logout() {
     setCurrentUser("");
     setPosts([]);
+    setInitialLoaded(false);
+    setHasMore(true);
+    pageRef.current = 0;
     window.localStorage.removeItem("journal-user");
   }
 
   if (!unlocked) {
     return (
-      <section className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <form onSubmit={unlock} className="glass-panel w-full max-w-sm rounded-lg p-6">
-          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-roseSoft/10 text-roseSoft">
+      <section className="page-shell flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
+        <form onSubmit={unlock} className="page-panel w-full p-6 sm:p-7">
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
             <LockKeyhole size={22} />
           </div>
           <h1 className="text-2xl font-semibold text-gray-50">Gizli alan</h1>
           <p className="mt-2 text-sm leading-6 text-gray-400">
-            Şifreni gir.
+            Şifreni gir, günlük otomatik olarak Enes veya Efsa hesabıyla açılır.
           </p>
           <input
             value={pin}
@@ -119,73 +175,91 @@ export default function JournalPage() {
             className="focus-ring mt-6 h-12 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 text-center text-lg tracking-[0.45em] text-gray-50 placeholder:text-gray-600"
           />
           {error && <p className="mt-3 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
-          <button className="focus-ring mt-5 h-12 w-full rounded-lg bg-roseSoft font-medium text-night transition hover:bg-[#aac7ff]">
-            Aç
-          </button>
+          <button className="primary-action focus-ring mt-5 w-full">Aç</button>
         </form>
       </section>
     );
   }
 
   return (
-    <section className="mx-auto max-w-4xl py-6">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-roseSoft/10 text-roseSoft">
-            <BookHeart size={23} />
-          </div>
-          <div>
-            <p className="text-sm uppercase tracking-[0.28em] text-roseSoft/80">
-              Ortak Günlük
-            </p>
-            <h1 className="text-3xl font-semibold text-gray-50">
-              Yazılmış günlükler
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/gunluk/yeni"
-            className="focus-ring inline-flex h-10 items-center gap-2 rounded-lg bg-roseSoft px-4 text-sm font-medium text-night transition hover:bg-[#aac7ff]"
-          >
-            <PenLine size={16} />
-            Yeni Yazı
-          </Link>
-          <button
-            onClick={logout}
-            className="focus-ring inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 px-4 text-sm text-gray-300 transition hover:bg-white/[0.04]"
-          >
-            <LogOut size={16} />
-            Çıkış
-          </button>
-        </div>
-      </div>
-
-      {error && <p className="mt-5 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
-
-      <div className="mt-8 space-y-4">
-        {posts.map((post) => (
-          <article
-            key={post.id}
-            className={`rounded-lg border p-5 backdrop-blur ${getPostClasses(post.author)}`}
-          >
-            <p className="whitespace-pre-wrap break-words leading-7 text-gray-200 [overflow-wrap:anywhere]">
-              {post.content}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 text-sm text-gray-500">
-              <span className={`rounded-full border px-3 py-1 text-xs ${getAuthorBadgeClasses(post.author)}`}>
-                {post.author}
-              </span>
-              <span className="py-1">
-                {new Intl.DateTimeFormat("tr-TR", {
-                  dateStyle: "medium",
-                  timeStyle: "short"
-                }).format(new Date(post.created_at))}
-              </span>
+    <section className="page-shell">
+      <div className="page-surface overflow-hidden">
+        <div className="border-b border-white/10 px-5 py-7 sm:px-8 lg:px-10">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="page-kicker">
+                <BookHeart size={15} className="text-roseDeep" />
+                Ortak Günlük
+              </div>
+              <h1 className="mt-5 break-words text-4xl font-semibold leading-tight text-gray-50 sm:text-5xl">
+                Yazılmış günlükler
+              </h1>
             </div>
-          </article>
-        ))}
+
+            <div className="grid gap-2 sm:flex">
+              <Link href="/gunluk/yeni" className="primary-action focus-ring">
+                <PenLine size={16} />
+                Yeni Yazı
+              </Link>
+              <button onClick={logout} className="ghost-action focus-ring">
+                <LogOut size={16} />
+                Çıkış
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-7 sm:px-8 lg:px-10">
+          {error && <p className="mb-5 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
+
+          {!initialLoaded && (
+            <div className="space-y-4">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="soft-card h-40 animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {initialLoaded && posts.length === 0 && !error && (
+              <div className="page-panel p-7 text-center text-gray-400">
+                Henüz günlük yazısı yok.
+              </div>
+            )}
+
+            {posts.map((post) => (
+              <article
+                key={post.id}
+                className={`rounded-lg border p-5 backdrop-blur content-visibility-auto ${getPostClasses(post.author)}`}
+              >
+                <p className="emoji-safe whitespace-pre-wrap break-words leading-7 text-gray-200 [overflow-wrap:anywhere]">
+                  <EmojiText>{post.content}</EmojiText>
+                </p>
+                <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 text-sm text-gray-500">
+                  <span className={`rounded-lg border px-3 py-1 text-xs ${getAuthorBadgeClasses(post.author)}`}>
+                    {post.author}
+                  </span>
+                  <span className="py-1">
+                    {new Intl.DateTimeFormat("tr-TR", {
+                      dateStyle: "medium",
+                      timeStyle: "short"
+                    }).format(new Date(post.created_at))}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div ref={sentinelRef} className="h-8" />
+
+          {loading && initialLoaded && (
+            <p className="mt-5 text-center text-sm text-gray-500">Günlükler yükleniyor...</p>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <p className="mt-5 text-center text-sm text-gray-600">bitti.</p>
+          )}
+        </div>
       </div>
     </section>
   );

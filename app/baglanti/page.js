@@ -183,25 +183,29 @@ export default function ConnectionPage() {
       onPointerCancel={handlePointerUp}
       className="fixed inset-0 touch-none select-none overflow-hidden bg-night md:left-24"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,183,255,0.13),transparent_34rem)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.024)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.024)_1px,transparent_1px),linear-gradient(135deg,rgba(19,21,26,0.94),rgba(13,14,18,0.98))] bg-[size:42px_42px,42px_42px,auto]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-roseDeep/70 to-transparent" />
 
-      <div className="pointer-events-none absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-smoke/80 px-4 py-3 backdrop-blur-xl md:left-8 md:right-8">
+      <div className="pointer-events-none absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#101219]/88 px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.32)] backdrop-blur-xl md:left-8 md:right-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-roseSoft/10 text-roseSoft">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
             <HeartHandshake size={20} />
           </div>
-          <p className="text-sm font-medium text-gray-100">
+          <p className="text-sm font-semibold text-gray-100">
             {connected ? "Bağlı" : "Bağlanıyor"}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Radio size={16} className={partnerVisible ? "text-roseSoft" : "text-gray-600"} />
-          {partnerVisible ? "Karşı taraf dokunuyor" : "Bekleniyor"}
+          {partnerVisible ? "Dokunuyor" : "Bekleniyor"}
         </div>
       </div>
 
       <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 text-center">
-        <h1 className="text-3xl font-semibold text-gray-100 sm:text-5xl">
+        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-roseSoft">
+          <Fingerprint size={48} strokeWidth={1.4} />
+        </div>
+        <h1 className="mt-5 text-3xl font-semibold text-gray-100 sm:text-5xl">
           Dokun
         </h1>
       </div>
@@ -217,15 +221,15 @@ function FingerVisual({ refEl, mine = false }) {
   return (
     <div
       ref={refEl}
-      className={`finger-visual pointer-events-none fixed left-0 top-0 z-10 flex h-24 w-24 items-center justify-center rounded-full opacity-0 ${
+      className={`finger-visual pointer-events-none fixed left-0 top-0 z-10 flex h-28 w-28 items-center justify-center rounded-lg opacity-0 ${
         mine
           ? "text-white/75 drop-shadow-[0_0_18px_rgba(255,255,255,0.3)]"
           : "text-roseSoft drop-shadow-[0_0_30px_rgba(147,183,255,0.78)]"
       }`}
     >
-      <div className="absolute inset-2 rounded-full border border-current opacity-10" />
-      <div className="absolute inset-4 rounded-full bg-current opacity-10 blur-md" />
-      <Fingerprint size={56} strokeWidth={1.7} />
+      <div className="absolute inset-2 rounded-lg border border-current opacity-12" />
+      <div className="absolute inset-5 rounded-lg bg-current opacity-10 blur-md" />
+      <Fingerprint size={66} strokeWidth={1.55} />
     </div>
   );
 }
