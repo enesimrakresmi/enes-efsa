@@ -17,7 +17,7 @@ export default function Navigation() {
   return (
     <>
       <nav className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 rounded-lg border border-white/10 bg-[#101219]/92 p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+        <div className="mx-auto grid max-w-md grid-cols-4 rounded-lg border border-white/10 bg-[#101219] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
           {items.map((item) => {
             const Icon = item.icon;
             const active =
@@ -31,8 +31,8 @@ export default function Navigation() {
                 aria-label={item.label}
                 className={`focus-ring relative flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[10px] font-semibold transition ${
                   active
-                    ? "bg-white/[0.07] text-gray-50"
-                    : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200"
+                    ? "bg-[#1b2230] text-gray-50"
+                    : "text-gray-500 hover:bg-[#151922] hover:text-gray-200"
                 }`}
               >
                 <span
@@ -56,12 +56,12 @@ export default function Navigation() {
         </div>
       </nav>
 
-      <nav className="fixed left-0 top-0 z-50 hidden h-screen w-24 border-r border-white/10 bg-[#0b0c10]/88 backdrop-blur-xl md:block">
+      <nav className="fixed left-0 top-0 z-50 hidden h-screen w-24 border-r border-white/10 bg-[#0b0c10] md:block">
         <div className="flex h-full flex-col items-center py-6">
           <Link
             href="/"
             aria-label="Ana Sayfa"
-            className="focus-ring flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-roseSoft"
+            className="focus-ring flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-[#151922] text-roseSoft"
           >
             <Heart size={23} fill="currentColor" />
           </Link>
@@ -81,8 +81,8 @@ export default function Navigation() {
                   title={item.label}
                   className={`focus-ring group relative flex h-14 w-14 items-center justify-center rounded-lg transition ${
                     active
-                      ? "bg-white/[0.07] text-gray-50"
-                      : "text-gray-500 hover:bg-white/[0.04] hover:text-gray-200"
+                      ? "bg-[#1b2230] text-gray-50"
+                      : "text-gray-500 hover:bg-[#151922] hover:text-gray-200"
                   }`}
                 >
                   <span

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarHeart, Clock, Heart, Sparkles } from "lucide-react";
 
 const START_DATE = "2026-05-05T16:50:32";
-const COUPLE_NAMES = "Enes ♡ Efsa";
+const COUPLE_NAMES = "Enes & Efsa";
 
 function getLoveTime() {
   const start = new Date(START_DATE).getTime();
@@ -56,7 +56,7 @@ export default function HomePage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-gray-300">
                 <Sparkles size={15} className="text-roseDeep" />
-                Sadece ikimize ait
+                Sadece ikimize ait küçük evren..
               </div>
 
               <h1 className="mt-7 max-w-3xl text-5xl font-semibold leading-[0.95] tracking-normal text-gray-50 sm:text-6xl lg:text-7xl">
@@ -64,25 +64,17 @@ export default function HomePage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-7 text-gray-400 sm:text-lg">
-                Günün neresinde olursak olalım, burası ikimizin küçük ve sıcak alanı.
+                Seninle konuşabilecek kadar heybetli değildi belki kelimelerim; ama ruhunu yerinden sallayacak kadar derindi hissettiklerim.
               </p>
             </div>
 
             <div className="mt-12 grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-white/10 bg-night/50 p-4">
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <CalendarHeart size={17} className="text-roseSoft" />
-                  Başlangıç
-                </div>
-                <p className="mt-3 text-2xl font-semibold text-gray-50">05.05.2026</p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-night/50 p-4">
-                <div className="flex items-center gap-2 text-sm text-gray-400">
                   <Heart size={17} className="text-roseDeep" fill="currentColor" />
-                  Not
                 </div>
                 <p className="mt-3 text-xl font-semibold text-gray-50">Kalp kalbe karşıdır.</p>
+                <p className="mt-3 text-2xl font-semibold text-gray-50">05.05.2026</p>
               </div>
             </div>
           </div>
@@ -90,18 +82,9 @@ export default function HomePage() {
           <div className="border-t border-white/10 bg-smoke/70 px-5 py-7 sm:px-8 sm:py-10 lg:border-l lg:border-t-0 lg:px-10">
             <div className="flex h-full flex-col justify-center">
               <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-night/55 px-3 py-2 text-xs text-gray-400">
-                    <Clock size={15} className="text-roseSoft" />
-                    Canlı sayaç
-                  </div>
                   <h2 className="mt-5 text-3xl font-semibold text-gray-50 sm:text-4xl">
-                    Aşk Sayacı
+                    Kaç gün oldu?
                   </h2>
-                </div>
-                <div className="hidden h-16 w-16 items-center justify-center rounded-lg border border-roseSoft/25 bg-roseSoft/10 text-roseSoft sm:flex">
-                  <Heart size={30} fill="currentColor" />
-                </div>
               </div>
 
               <div className="mt-8 grid grid-cols-2 gap-3">
@@ -122,10 +105,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-6 rounded-lg border border-roseDeep/15 bg-roseDeep/[0.06] p-4 text-sm leading-6 text-gray-300">
-                Birlikte geçen zaman burada sessizce büyüyor; her saniye küçük bir anıya dönüşüyor.
               </div>
             </div>
           </div>

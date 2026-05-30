@@ -102,7 +102,7 @@ button {
 .page-shell {
   width: min(100%, 72rem);
   margin-inline: auto;
-  padding-block: 0.75rem 1.5rem;
+  padding-block: 0.4rem 1.5rem;
 }
 
 .page-surface {
@@ -114,6 +114,14 @@ button {
     linear-gradient(135deg, rgba(19, 21, 26, 0.92), rgba(13, 14, 18, 0.96));
   background-size: 42px 42px, 42px 42px, auto;
   box-shadow: 0 22px 64px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 640px) {
+  .page-surface {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
 }
 
 .page-panel {

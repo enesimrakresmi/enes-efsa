@@ -191,9 +191,6 @@ export default function JournalPage() {
                 <BookHeart size={15} className="text-roseDeep" />
                 Ortak Günlük
               </div>
-              <h1 className="mt-5 break-words text-4xl font-semibold leading-tight text-gray-50 sm:text-5xl">
-                Yazılmış günlükler
-              </h1>
             </div>
 
             <div className="grid gap-2 sm:flex">
@@ -209,7 +206,7 @@ export default function JournalPage() {
           </div>
         </div>
 
-        <div className="px-5 py-7 sm:px-8 lg:px-10">
+        <div className="px-3 py-7 sm:px-8 lg:px-10">
           {error && <p className="mb-5 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
 
           {!initialLoaded && (
@@ -257,7 +254,7 @@ export default function JournalPage() {
           )}
 
           {!hasMore && posts.length > 0 && (
-            <p className="mt-5 text-center text-sm text-gray-600">bitti.</p>
+            <p className="mt-5 text-center text-sm text-gray-600">Tüm günlükler yüklendi.</p>
           )}
         </div>
       </div>

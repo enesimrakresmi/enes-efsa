@@ -136,9 +136,6 @@ export default function TimelinePage() {
                 <CalendarHeart size={15} className="text-roseDeep" />
                 Zaman Tüneli
               </div>
-              <h1 className="mt-5 break-words text-4xl font-semibold leading-tight text-gray-50 sm:text-5xl">
-                Enes & Efsa arşivi
-              </h1>
             </div>
 
             <Link href="/zaman-tuneli/yeni" className="primary-action focus-ring w-full sm:w-auto">
@@ -148,15 +145,15 @@ export default function TimelinePage() {
           </div>
         </div>
 
-        <div className="px-5 py-7 sm:px-8 lg:px-10">
+        <div className="px-3 py-7 sm:px-8 lg:px-10">
           {error && (
             <p className="mb-6 break-words rounded-lg border border-roseSoft/20 bg-roseSoft/10 p-4 text-sm text-roseSoft [overflow-wrap:anywhere]">
               {error}
             </p>
           )}
 
-          <div className="relative pl-6 sm:pl-12">
-            <div className="absolute left-2 top-0 h-full w-px bg-gradient-to-b from-roseSoft via-white/16 to-transparent sm:left-5" />
+          <div className="relative pl-3 sm:pl-12">
+            <div className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-roseSoft via-white/16 to-transparent sm:left-5" />
 
             {!initialLoaded && (
               <div className="space-y-4">
@@ -173,7 +170,7 @@ export default function TimelinePage() {
               </div>
             )}
 
-            <div className="space-y-7 sm:space-y-9">
+            <div className="space-y-6 sm:space-y-9">
               {memories.map((memory) => (
                 <MemoryCard key={memory.id} memory={memory} />
               ))}
@@ -198,7 +195,7 @@ export default function TimelinePage() {
 function MemoryCard({ memory }) {
   return (
     <article className="relative min-w-0 content-visibility-auto">
-      <div className="absolute -left-[1.65rem] top-5 flex h-7 w-7 items-center justify-center rounded-full border border-roseSoft/45 bg-night text-roseSoft shadow-glow sm:-left-[2.65rem]">
+      <div className="hidden absolute -left-[2.65rem] top-5 h-7 w-7 items-center justify-center rounded-full border border-roseSoft/45 bg-night text-roseSoft shadow-glow sm:flex">
         <CalendarHeart size={15} />
       </div>
 

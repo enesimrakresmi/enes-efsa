@@ -202,9 +202,6 @@ export default function ConnectionPage() {
       </div>
 
       <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 text-center">
-        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-roseSoft">
-          <Fingerprint size={48} strokeWidth={1.4} />
-        </div>
         <h1 className="mt-5 text-3xl font-semibold text-gray-100 sm:text-5xl">
           Dokun
         </h1>
