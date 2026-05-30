@@ -75,7 +75,15 @@ function canUseFileAsImage(file) {
   return ACCEPTED_IMAGE_EXTENSIONS.has(getFileExtension(file));
 }
 
-function loadImage(file) {
+async function loadImage(file) {
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      // Android'de bazı dosyalarda object URL yolu daha iyi çalışabiliyor.
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const image = new Image();
     const objectUrl = URL.createObjectURL(file);
@@ -87,7 +95,7 @@ function loadImage(file) {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("Fotoğraf telefonda okunamadı. Başka bir fotoğrafla tekrar deneyin."));
+      reject(new Error("Fotoğraf telefonda okunamadı."));
     };
 
     image.src = objectUrl;
@@ -136,6 +144,7 @@ async function compressImage(file) {
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
   context.drawImage(image, 0, 0, width, height);
+  if (typeof image.close === "function") image.close();
 
   for (const output of IMAGE_OUTPUTS) {
     try {
@@ -154,7 +163,28 @@ async function compressImage(file) {
 
   canvas.width = 1;
   canvas.height = 1;
-  throw new Error("Fotoğraf hazırlanamadı. Galeriden başka bir fotoğraf seçip tekrar deneyin.");
+  throw new Error("Fotoğraf hazırlanamadı.");
+}
+
+async function cloneOriginalFile(file) {
+  const contentType = getContentType(file);
+  const buffer = await file.arrayBuffer();
+
+  return {
+    blob: new Blob([buffer], { type: contentType }),
+    contentType,
+    extension: getFileExtension(file)
+  };
+}
+
+function getUploadErrorMessage(error) {
+  const message = String(error?.message || error || "");
+
+  if (message.toLowerCase().includes("failed to fetch")) {
+    return "Fotoğraf telefondan sunucuya gönderilemedi. Mobil veri/Wi-Fi değiştirip tekrar deneyin veya fotoğrafı ekran görüntüsü alıp yükleyin.";
+  }
+
+  return message || "Fotoğraf yüklenemedi. İnternet bağlantısını kontrol edip tekrar deneyin.";
 }
 
 export default function NewMemoryPage() {
@@ -229,11 +259,8 @@ export default function NewMemoryPage() {
     try {
       preparedPhoto = await compressImage(photoFile);
     } catch {
-      preparedPhoto = {
-        blob: photoFile,
-        contentType: getContentType(photoFile),
-        extension: getFileExtension(photoFile)
-      };
+      setMessage("Fotoğraf sıkıştırılamadı, orijinal hali yükleniyor...");
+      preparedPhoto = await cloneOriginalFile(photoFile);
     }
 
     const path = `${author.toLowerCase()}/${Date.now()}-${createSafeId()}.${preparedPhoto.extension}`;
@@ -287,10 +314,7 @@ export default function NewMemoryPage() {
 
       router.push("/zaman-tuneli");
     } catch (error) {
-      setMessage(
-        error?.message ||
-          "Fotoğraf yüklenemedi. İnternet bağlantısını kontrol edip tekrar deneyin."
-      );
+      setMessage(getUploadErrorMessage(error));
     } finally {
       setLoading(false);
     }
