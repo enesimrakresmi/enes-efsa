@@ -12,6 +12,7 @@ import {
   X
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import TextStats from "@/components/TextStats";
 
 const PIN_USERS = {
   "3773": "Efsa",
@@ -407,6 +408,7 @@ export default function NewMemoryPage() {
               placeholder="Örn: İlk kahvemiz"
               className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-gray-100 placeholder:text-gray-600"
             />
+            <TextStats value={form.title} label="Başlık" />
           </Field>
 
           <Field label="Anı metni">
@@ -417,6 +419,7 @@ export default function NewMemoryPage() {
               placeholder="O günü, aklında kalan kokuyu, cümleyi ya da küçük detayı yaz..."
               className="focus-ring mt-2 min-h-44 w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] p-4 leading-7 text-gray-100 placeholder:text-gray-600"
             />
+            <TextStats value={form.description} label="Anı" />
           </Field>
 
           <div className="grid min-w-0 gap-4 sm:grid-cols-3">

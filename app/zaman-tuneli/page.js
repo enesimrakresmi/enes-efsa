@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import EmojiText from "@/components/EmojiText";
+import ExpandableText from "@/components/ExpandableText";
 
 const PAGE_SIZE = 8;
 
@@ -33,7 +34,7 @@ function mergeUniqueItems(current, nextItems) {
 
 function getAuthorClasses(author) {
   if (author === "Efsa") return "border-[#ff8aaa]/35 bg-[#ff8aaa]/14 text-[#ffb3c7]";
-  return "border-black/70 bg-black/70 text-gray-100";
+  return "border-white/10 bg-black/70 text-gray-100";
 }
 
 export default function TimelinePage() {
@@ -129,13 +130,16 @@ export default function TimelinePage() {
   return (
     <section className="page-shell">
       <div className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-7 sm:px-8 lg:px-10">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="border-b border-white/10 px-5 py-6 sm:px-8 lg:px-10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <div className="page-kicker">
                 <CalendarHeart size={15} className="text-roseDeep" />
                 Zaman Tüneli
               </div>
+              <p className="mt-3 text-sm leading-6 text-gray-500">
+                En yeni anılar önce görünür.
+              </p>
             </div>
 
             <Link href="/zaman-tuneli/yeni" className="primary-action focus-ring w-full sm:w-auto">
@@ -145,47 +149,43 @@ export default function TimelinePage() {
           </div>
         </div>
 
-        <div className="px-3 py-7 sm:px-8 lg:px-10">
+        <div className="px-3 py-5 sm:px-8 lg:px-10">
           {error && (
             <p className="mb-6 break-words rounded-lg border border-roseSoft/20 bg-roseSoft/10 p-4 text-sm text-roseSoft [overflow-wrap:anywhere]">
               {error}
             </p>
           )}
 
-          <div className="relative pl-3 sm:pl-12">
-            <div className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-roseSoft via-white/16 to-transparent sm:left-5" />
-
-            {!initialLoaded && (
-              <div className="space-y-4">
-                {[0, 1, 2].map((item) => (
-                  <div key={item} className="soft-card h-48 animate-pulse" />
-                ))}
-              </div>
-            )}
-
-            {initialLoaded && memories.length === 0 && !error && (
-              <div className="page-panel p-7 text-center">
-                <ImageIcon className="mx-auto text-gray-600" size={32} />
-                <p className="mt-3 text-gray-400">Henüz anı eklenmemiş.</p>
-              </div>
-            )}
-
-            <div className="space-y-6 sm:space-y-9">
-              {memories.map((memory) => (
-                <MemoryCard key={memory.id} memory={memory} />
+          {!initialLoaded && (
+            <div className="space-y-4">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="soft-card h-48 animate-pulse" />
               ))}
             </div>
+          )}
 
-            <div ref={sentinelRef} className="h-8" />
+          {initialLoaded && memories.length === 0 && !error && (
+            <div className="page-panel p-7 text-center">
+              <ImageIcon className="mx-auto text-gray-600" size={32} />
+              <p className="mt-3 text-gray-400">Henüz anı eklenmemiş.</p>
+            </div>
+          )}
 
-            {loading && initialLoaded && (
-              <p className="mt-5 text-center text-sm text-gray-500">Anılar yükleniyor...</p>
-            )}
-
-            {!hasMore && memories.length > 0 && (
-              <p className="mt-5 text-center text-sm text-gray-600">Tüm anılar yüklendi.</p>
-            )}
+          <div className="space-y-4 sm:space-y-6">
+            {memories.map((memory) => (
+              <MemoryCard key={memory.id} memory={memory} />
+            ))}
           </div>
+
+          <div ref={sentinelRef} className="h-8" />
+
+          {loading && initialLoaded && (
+            <p className="mt-5 text-center text-sm text-gray-500">Anılar yükleniyor...</p>
+          )}
+
+          {!hasMore && memories.length > 0 && (
+            <p className="mt-5 text-center text-sm text-gray-600">Tüm anılar yüklendi.</p>
+          )}
         </div>
       </div>
     </section>
@@ -194,35 +194,37 @@ export default function TimelinePage() {
 
 function MemoryCard({ memory }) {
   return (
-    <article className="relative min-w-0 content-visibility-auto">
-      <div className="hidden absolute -left-[2.65rem] top-5 h-7 w-7 items-center justify-center rounded-full border border-roseSoft/45 bg-night text-roseSoft shadow-glow sm:flex">
-        <CalendarHeart size={15} />
+    <article
+      className={`feed-card content-visibility-auto min-w-0 overflow-hidden p-4 sm:p-6 ${
+        memory.author === "Efsa" ? "feed-card-efsa" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-sm font-medium text-roseSoft">
+          {formatMemoryDate(memory.memory_date)}
+        </div>
+        <AuthorBadge author={memory.author} />
       </div>
 
-      <div className="page-panel min-w-0 overflow-hidden p-4 sm:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="text-sm font-medium text-roseSoft">
-            {formatMemoryDate(memory.memory_date)}
-          </div>
-          <AuthorBadge author={memory.author} />
-        </div>
+      <h2 className="emoji-safe mt-4 break-words text-[1.35rem] font-semibold leading-tight text-gray-50 [overflow-wrap:anywhere] sm:text-2xl">
+        <EmojiText>{memory.title}</EmojiText>
+      </h2>
 
-        <h2 className="emoji-safe mt-3 break-words text-2xl font-semibold text-gray-50 [overflow-wrap:anywhere]">
-          <EmojiText>{memory.title}</EmojiText>
-        </h2>
-
-        <div className="mt-4 flex min-w-0 flex-wrap gap-2">
-          <MemoryMeta icon={MapPin} value={memory.location} tone="blue" />
-          <MemoryMeta icon={Sparkles} value={memory.mood} tone="pink" />
-          <MemoryMeta icon={Music2} value={memory.song} tone="violet" />
-        </div>
-
-        <p className="emoji-safe mt-4 whitespace-pre-wrap break-words leading-7 text-gray-400 [overflow-wrap:anywhere]">
-          <EmojiText>{memory.description}</EmojiText>
-        </p>
-
-        <MemoryImage url={memory.image_url} title={memory.title} />
+      <div className="mt-4 flex min-w-0 flex-wrap gap-2">
+        <MemoryMeta icon={MapPin} value={memory.location} tone="blue" />
+        <MemoryMeta icon={Sparkles} value={memory.mood} tone="pink" />
+        <MemoryMeta icon={Music2} value={memory.song} tone="violet" />
       </div>
+
+      <div className="mt-4">
+        <ExpandableText
+          text={memory.description}
+          limit={280}
+          className="leading-7 text-gray-400"
+        />
+      </div>
+
+      <MemoryImage url={memory.image_url} title={memory.title} />
     </article>
   );
 }

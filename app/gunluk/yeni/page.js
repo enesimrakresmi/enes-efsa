@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookHeart, LockKeyhole, Save } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import TextStats from "@/components/TextStats";
 
 const PIN_USERS = {
   "3773": "Efsa",
@@ -94,25 +95,26 @@ export default function NewJournalPage() {
       </Link>
 
       <form onSubmit={saveEntry} className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-7 sm:px-8">
+        <div className="border-b border-white/10 px-5 py-6 sm:px-8">
           <div className="page-kicker">
             <BookHeart size={15} className="text-roseDeep" />
             Yeni Günlük
           </div>
-          <h1 className="mt-5 text-4xl font-semibold text-gray-50">
+          <h1 className="mt-5 text-3xl font-semibold text-gray-50 sm:text-4xl">
             Bugünü yaz
           </h1>
           <p className="mt-3 text-sm text-gray-400">Yazan: {author}</p>
         </div>
 
-        <div className="px-5 py-6 sm:px-8">
+        <div className="px-4 py-5 sm:px-8">
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
             placeholder="Uzun ya da kısa, ne istersen yaz..."
             rows={16}
-            className="focus-ring min-h-[28rem] w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] p-4 leading-7 text-gray-100 placeholder:text-gray-600"
+            className="focus-ring min-h-[24rem] w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] p-4 leading-7 text-gray-100 placeholder:text-gray-600"
           />
+          <TextStats value={content} label="Günlük" />
 
           {error && <p className="mt-4 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BookHeart, LockKeyhole, LogOut, PenLine } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import EmojiText from "@/components/EmojiText";
+import ExpandableText from "@/components/ExpandableText";
 
 const PAGE_SIZE = 8;
 const PIN_USERS = {
@@ -18,8 +18,7 @@ function mergeUniqueItems(current, nextItems) {
 }
 
 function getPostClasses(author) {
-  if (author === "Efsa") return "border-[#ff8aaa]/25 bg-[#ff8aaa]/8";
-  return "border-black/70 bg-black/35";
+  return author === "Efsa" ? "feed-card-efsa" : "";
 }
 
 function getAuthorBadgeClasses(author) {
@@ -27,7 +26,7 @@ function getAuthorBadgeClasses(author) {
     return "border-[#ff8aaa]/35 bg-[#ff8aaa]/14 text-[#ffb3c7]";
   }
 
-  return "border-black/70 bg-black/70 text-gray-100";
+  return "border-white/10 bg-black/70 text-gray-100";
 }
 
 export default function JournalPage() {
@@ -184,13 +183,16 @@ export default function JournalPage() {
   return (
     <section className="page-shell">
       <div className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-7 sm:px-8 lg:px-10">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="border-b border-white/10 px-5 py-6 sm:px-8 lg:px-10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <div className="page-kicker">
                 <BookHeart size={15} className="text-roseDeep" />
                 Ortak Günlük
               </div>
+              <p className="mt-3 text-sm leading-6 text-gray-500">
+                Uzun ve kısa notlar aynı akışta saklanır.
+              </p>
             </div>
 
             <div className="grid gap-2 sm:flex">
@@ -206,7 +208,7 @@ export default function JournalPage() {
           </div>
         </div>
 
-        <div className="px-3 py-7 sm:px-8 lg:px-10">
+        <div className="px-3 py-5 sm:px-8 lg:px-10">
           {error && <p className="mb-5 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
 
           {!initialLoaded && (
@@ -227,12 +229,14 @@ export default function JournalPage() {
             {posts.map((post) => (
               <article
                 key={post.id}
-                className={`rounded-lg border p-5 backdrop-blur content-visibility-auto ${getPostClasses(post.author)}`}
+                className={`feed-card content-visibility-auto p-4 sm:p-6 ${getPostClasses(post.author)}`}
               >
-                <p className="emoji-safe whitespace-pre-wrap break-words leading-7 text-gray-200 [overflow-wrap:anywhere]">
-                  <EmojiText>{post.content}</EmojiText>
-                </p>
-                <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 text-sm text-gray-500">
+                <ExpandableText
+                  text={post.content}
+                  limit={360}
+                  className="leading-7 text-gray-200"
+                />
+                <div className="mt-5 flex flex-wrap gap-x-3 gap-y-2 text-sm text-gray-500">
                   <span className={`rounded-lg border px-3 py-1 text-xs ${getAuthorBadgeClasses(post.author)}`}>
                     {post.author}
                   </span>
