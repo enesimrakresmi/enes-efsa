@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookHeart, CircleHelp, Clock, Heart, HeartHandshake, Mail } from "lucide-react";
+import { BookHeart, Clock, Heart, HeartHandshake, Mail } from "lucide-react";
 
 const items = [
   { href: "/", label: "Ana Sayfa", shortLabel: "Ana", icon: Heart },
   { href: "/zaman-tuneli", label: "Zaman Tüneli", shortLabel: "Anılar", icon: Clock },
   { href: "/gunluk", label: "Ortak Günlük", shortLabel: "Günlük", icon: BookHeart },
-  { href: "/sorular", label: "Sorular", shortLabel: "Soru", icon: CircleHelp },
   { href: "/mektuplar", label: "Gizli Mektuplar", shortLabel: "Mektup", icon: Mail },
   { href: "/baglanti", label: "Canlı Bağlantı", shortLabel: "Bağ", icon: HeartHandshake }
 ];
@@ -19,7 +18,7 @@ export default function Navigation() {
   return (
     <>
       <nav className="fixed bottom-3 left-2 right-2 z-50 md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-6 rounded-lg border border-white/10 bg-[#101219] p-1 shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
+        <div className="mx-auto grid max-w-md grid-cols-5 rounded-lg border border-white/10 bg-[#101219] p-1 shadow-[0_18px_50px_rgba(0,0,0,0.5)]">
           {items.map((item) => {
             const Icon = item.icon;
             const active =

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LockKeyhole, LogOut, Mail, PenLine, Unlock, UserRound } from "lucide-react";
+import { LockKeyhole, LogOut, Mail, PenLine, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import ExpandableText from "@/components/ExpandableText";
 
@@ -197,7 +197,7 @@ export default function LettersPage() {
           </div>
           <h1 className="text-2xl font-semibold text-gray-50">Gizli mektuplar</h1>
           <p className="mt-2 text-sm leading-6 text-gray-400">
-            Listeyi görmek için PIN gir. Zamanı gelen mektuplar tek dokunuşla açılır.
+            Listeyi görmek için PIN gir. Zamanı gelen mektuplar direkt görünür.
           </p>
           <input
             value={pin}
@@ -225,7 +225,7 @@ export default function LettersPage() {
                 Gizli Mektuplar
               </div>
               <p className="mt-3 text-sm leading-6 text-gray-500">
-                Geleceğe bırakılan, zamanı gelince açılan küçük mektuplar.
+                Geleceğe bırakılan, zamanı gelince kendiliğinden görünen küçük mektuplar.
               </p>
             </div>
 
@@ -281,10 +281,10 @@ export default function LettersPage() {
 }
 
 function LetterCard({ letter, now, currentUser }) {
-  const [opened, setOpened] = useState(false);
   const isTimeOpen = new Date(letter.open_at).getTime() <= now;
   const canCurrentUserOpen = letter.recipient === "Ortak" || letter.recipient === currentUser;
   const countdown = formatCountdown(letter.open_at, now);
+  const shouldShowContent = isTimeOpen && canCurrentUserOpen;
 
   return (
     <article
@@ -306,7 +306,7 @@ function LetterCard({ letter, now, currentUser }) {
         {letter.title}
       </h2>
 
-      {opened ? (
+      {shouldShowContent ? (
         <div className="mt-4">
           <ExpandableText text={letter.content} limit={420} className="leading-7 text-gray-200" />
         </div>
@@ -316,15 +316,10 @@ function LetterCard({ letter, now, currentUser }) {
             <p className="text-sm leading-6 text-gray-500">
               Bu mektup henüz açılmadı. Geri sayım: <span className="text-roseSoft">{countdown}</span>
             </p>
-          ) : !canCurrentUserOpen ? (
+          ) : (
             <p className="text-sm leading-6 text-gray-500">
               Bu mektup sadece {letter.recipient} tarafından açılabilir.
             </p>
-          ) : (
-            <button type="button" onClick={() => setOpened(true)} className="primary-action focus-ring w-full sm:w-auto">
-              <Unlock size={16} />
-              Açmak için tıkla
-            </button>
           )}
         </div>
       )}
