@@ -7,17 +7,15 @@ import {
   ArrowLeft,
   CalendarPlus,
   ImagePlus,
-  LockKeyhole,
   Save,
+  Sparkles,
   X
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import TextStats from "@/components/TextStats";
+import { useAuth } from "@/components/AuthProvider";
 
-const PIN_USERS = {
-  "3773": "Efsa",
-  "1453": "Enes"
-};
+
 
 const MAX_PHOTO_SIZE = 18 * 1024 * 1024;
 const DEFAULT_MAX_IMAGE_EDGE = 1600;
@@ -81,7 +79,7 @@ async function loadImage(file) {
     try {
       return await createImageBitmap(file, { imageOrientation: "from-image" });
     } catch {
-      // Android'de bazı dosyalarda object URL yolu daha iyi çalışabiliyor.
+      // Fallback to Image element
     }
   }
 
@@ -96,7 +94,7 @@ async function loadImage(file) {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("Fotoğraf telefonda okunamadı."));
+      reject(new Error("Fotoğraf okunamadı."));
     };
 
     image.src = objectUrl;
@@ -158,7 +156,7 @@ async function compressImage(file) {
         extension: output.extension
       };
     } catch {
-      // Android tarafında WebP üretimi bazen başarısız olabiliyor; JPEG yedeği denenir.
+      // Retry with alternative format
     }
   }
 
@@ -182,16 +180,15 @@ function getUploadErrorMessage(error) {
   const message = String(error?.message || error || "");
 
   if (message.toLowerCase().includes("failed to fetch")) {
-    return "Fotoğraf telefondan sunucuya gönderilemedi. Mobil veri/Wi-Fi değiştirip tekrar deneyin veya fotoğrafı ekran görüntüsü alıp yükleyin.";
+    return "Fotoğraf telefondan sunucuya gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.";
   }
 
-  return message || "Fotoğraf yüklenemedi. İnternet bağlantısını kontrol edip tekrar deneyin.";
+  return message || "Fotoğraf yüklenemedi. Lütfen tekrar deneyin.";
 }
 
 export default function NewMemoryPage() {
   const router = useRouter();
-  const [pin, setPin] = useState("");
-  const [author, setAuthor] = useState("");
+  const { displayName: author, partner } = useAuth();
   const [form, setForm] = useState({
     memory_date: "",
     title: "",
@@ -204,20 +201,6 @@ export default function NewMemoryPage() {
   const [photoPreview, setPhotoPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
-  function unlock(event) {
-    event.preventDefault();
-    const user = PIN_USERS[pin];
-
-    if (!user) {
-      setMessage("Şifre yanlış. 3773 Efsa, 1453 Enes olarak açar.");
-      return;
-    }
-
-    setAuthor(user);
-    setPin("");
-    setMessage("");
-  }
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -249,7 +232,7 @@ export default function NewMemoryPage() {
       setPhotoPreview(URL.createObjectURL(clonedPhoto.blob));
       setMessage("");
     } catch {
-      setMessage("Telefon fotoğraf iznini vermedi. Fotoğrafı Galeri uygulamasından seçip tekrar deneyin.");
+      setMessage("Fotoğraf telefondan okunamadı.");
     }
   }
 
@@ -257,53 +240,46 @@ export default function NewMemoryPage() {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoFile(null);
     setPhotoPreview("");
+    setMessage("");
   }
 
   async function uploadPhoto() {
     if (!photoFile) return null;
 
-    setMessage("Fotoğraf telefona uygun hale getiriliyor...");
-    let preparedPhoto;
+    let uploadPayload = photoFile;
 
     try {
-      preparedPhoto = await compressImage(photoFile.blob);
+      uploadPayload = await compressImage(photoFile.blob);
     } catch {
-      setMessage("Fotoğraf sıkıştırılamadı, orijinal hali yükleniyor...");
-      preparedPhoto = photoFile;
+      uploadPayload = photoFile;
     }
 
-    const path = `${author.toLowerCase()}/${Date.now()}-${createSafeId()}.${preparedPhoto.extension}`;
+    const path = `memories/${createSafeId()}.${uploadPayload.extension}`;
 
-    setMessage("Fotoğraf yükleniyor...");
     const { error: uploadError } = await supabase.storage
-      .from("memory-photos")
-      .upload(path, preparedPhoto.blob, {
-        cacheControl: "3600",
-        contentType: preparedPhoto.contentType,
+      .from("photos")
+      .upload(path, uploadPayload.blob, {
+        contentType: uploadPayload.contentType,
+        cacheControl: "31536000",
         upsert: false
       });
 
     if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage.from("memory-photos").getPublicUrl(path);
-    return data.publicUrl;
+    const { data } = supabase.storage.from("photos").getPublicUrl(path);
+    return data?.publicUrl || null;
   }
 
   async function addMemory(event) {
     event.preventDefault();
 
-    if (!supabase) {
-      setMessage("Supabase bağlantısı yok. .env.local dosyasını kontrol edin.");
-      return;
-    }
-
     if (!form.memory_date || !form.title.trim() || !form.description.trim()) {
-      setMessage("Tarih, başlık ve anı metni zorunlu.");
+      setMessage("Tarih, başlık ve anı metni zorunludur.");
       return;
     }
 
     setLoading(true);
-    setMessage(photoFile ? "Fotoğraf hazırlanıyor..." : "");
+    setMessage(photoFile ? "Fotoğraf yükleniyor ve kaydediliyor..." : "");
 
     try {
       const imageUrl = await uploadPhoto();
@@ -321,6 +297,24 @@ export default function NewMemoryPage() {
 
       if (error) throw error;
 
+      // Send push notification to partner
+      try {
+        await fetch("/api/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetUser: partner,
+            senderUser: author,
+            title: "EfEs • Yeni Hatıra ✨",
+            body: `${author} yeni bir hatıra kaydetti 📸: ${form.title.trim()}`,
+            url: "/zaman-tuneli",
+            tag: "new-memory"
+          })
+        });
+      } catch {
+        // Ignore background push error
+      }
+
       router.push("/zaman-tuneli");
     } catch (error) {
       setMessage(getUploadErrorMessage(error));
@@ -329,137 +323,107 @@ export default function NewMemoryPage() {
     }
   }
 
-  if (!author) {
-    return (
-      <section className="page-shell flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
-        <form onSubmit={unlock} className="page-panel w-full p-6 sm:p-7">
-          <Link href="/zaman-tuneli" className="ghost-action focus-ring mb-6">
-            <ArrowLeft size={16} />
-            Zaman tüneline dön
-          </Link>
-
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
-            <LockKeyhole size={22} />
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-50">Anı ekleme kilidi</h1>
-          <p className="mt-2 text-sm leading-6 text-gray-400">
-            Anıyı kimin eklediğini bilmek için PIN gir.
-          </p>
-          <input
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-            type="password"
-            inputMode="numeric"
-            placeholder="PIN"
-            className="focus-ring mt-6 h-12 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 text-center text-lg tracking-[0.45em] text-gray-50 placeholder:text-gray-600"
-          />
-          {message && <p className="mt-3 text-sm text-roseSoft">{message}</p>}
-          <button className="primary-action focus-ring mt-5 w-full">Aç</button>
-        </form>
-      </section>
-    );
-  }
-
   return (
-    <section className="page-shell max-w-4xl">
-      <Link href="/zaman-tuneli" className="ghost-action focus-ring mb-5">
-        <ArrowLeft size={16} />
-        Zaman tüneline dön
-      </Link>
+    <section className="mx-auto flex min-h-[calc(100vh-6.5rem)] w-full max-w-5xl flex-col justify-start py-2 sm:py-6">
+      <div className="mb-4">
+        <Link href="/zaman-tuneli" className="ghost-action focus-ring inline-flex">
+          <ArrowLeft size={16} />
+          Zaman Tüneline Dön
+        </Link>
+      </div>
 
-      <div className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-7 sm:px-8">
-          <div className="page-kicker">
-            <CalendarPlus size={15} className="text-roseDeep" />
-            Yeni Anı
-          </div>
-          <h1 className="mt-5 text-4xl font-semibold text-gray-50">
-            Zaman tüneline ekle
+      <div className="relative w-full overflow-hidden rounded-2xl border border-amberGold/20 bg-gradient-to-b from-[#1a1512]/95 via-[#13100e]/95 to-[#0e0c0b]/98 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amberGold/40 to-transparent" />
+
+        <div className="border-b border-white/[0.06] pb-5">
+          <h1 className="font-serif text-2xl font-normal text-parchment-50 sm:text-4xl">
+            Hatıra Defterine Ekle
           </h1>
-          <p className="mt-3 text-sm text-gray-400">
-            Tarih, başlık ve anı metni yeterli. Diğer alanları istersen doldur.
+          <p className="mt-1 font-serif text-xs italic text-parchment-400 sm:text-sm">
+            Tarih, başlık ve anı metni zorunludur. Dilerseniz fotoğraf, konum ve şarkı ekleyebilirsiniz.
           </p>
         </div>
 
-        <form onSubmit={addMemory} className="px-5 py-6 sm:px-8">
-          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-            <Field label="Tarih">
+        <form onSubmit={addMemory} className="pt-6 space-y-5">
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Anı Tarihi">
               <input
                 value={form.memory_date}
                 onChange={(event) => updateField("memory_date", event.target.value)}
                 type="date"
-                className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-gray-100"
+                className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-3.5 font-serif text-sm text-parchment-100"
               />
             </Field>
 
-            <Field label="Ekleyen">
+            <Field label="Kaleme Alan">
               <input
                 value={author}
                 readOnly
-                className="mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-gray-400"
+                className="mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-amberGold/10 px-3.5 font-serif text-sm font-semibold text-amberGold"
               />
             </Field>
           </div>
 
-          <Field label="Başlık">
+          <Field label="Anı Başlığı">
             <input
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
-              placeholder="Örn: İlk kahvemiz"
-              className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-gray-100 placeholder:text-gray-600"
+              placeholder="Örn: Yağmurlu günün ilk kahvesi"
+              className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-4 font-serif text-base text-parchment-100 placeholder:text-parchment-500"
             />
             <TextStats value={form.title} label="Başlık" />
           </Field>
 
-          <Field label="Anı metni">
+          <Field label="Anı Metni & Duygular">
             <textarea
               value={form.description}
               onChange={(event) => updateField("description", event.target.value)}
               rows={7}
-              placeholder="O günü, aklında kalan kokuyu, cümleyi ya da küçük detayı yaz..."
-              className="focus-ring mt-2 min-h-44 w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] p-4 leading-7 text-gray-100 placeholder:text-gray-600"
+              placeholder="O günü, aklında kalan kokuyu, cümleyi ya da ikinize ait o küçük detayı yaz..."
+              className="focus-ring mt-1.5 min-h-44 w-full resize-y rounded-xl border border-amberGold/20 bg-black/30 p-4 leading-relaxed text-parchment-100 placeholder:text-parchment-500"
             />
             <TextStats value={form.description} label="Anı" />
           </Field>
 
-          <div className="grid min-w-0 gap-4 sm:grid-cols-3">
-            <Field label="Konum">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Konum / Şehir">
               <input
                 value={form.location}
                 onChange={(event) => updateField("location", event.target.value)}
-                placeholder="İsteğe bağlı"
-                className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-gray-100 placeholder:text-gray-600"
+                placeholder="Örn: Galata, İstanbul"
+                className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-3.5 text-sm text-parchment-100 placeholder:text-parchment-500"
               />
             </Field>
 
-            <Field label="Ruh hali">
+            <Field label="Ruh Hali">
               <input
                 value={form.mood}
                 onChange={(event) => updateField("mood", event.target.value)}
-                placeholder="İsteğe bağlı"
-                className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-gray-100 placeholder:text-gray-600"
+                placeholder="Örn: Huzurlu, heyecanlı"
+                className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-3.5 text-sm text-parchment-100 placeholder:text-parchment-500"
               />
             </Field>
 
-            <Field label="Şarkı">
+            <Field label="O An Çalan Şarkı">
               <input
                 value={form.song}
                 onChange={(event) => updateField("song", event.target.value)}
-                placeholder="İsteğe bağlı"
-                className="focus-ring mt-2 h-12 w-full min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-gray-100 placeholder:text-gray-600"
+                placeholder="Örn: Yıldız Tilbe - Vazgeçtim"
+                className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-3.5 text-sm text-parchment-100 placeholder:text-parchment-500"
               />
             </Field>
           </div>
 
-          <div className="mt-5">
-            <span className="text-sm text-gray-400">Fotoğraf</span>
-            <label className="focus-ring mt-2 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/14 bg-white/[0.04] p-5 text-center transition hover:border-roseSoft/50 hover:bg-roseSoft/5">
-              <ImagePlus className="mb-3 text-roseSoft" size={28} />
-              <span className="text-sm font-medium text-gray-200">
-                Bilgisayardan veya telefondan fotoğraf seç
+          <div className="pt-2">
+            <span className="font-serif text-sm text-parchment-300">Hatıra Fotoğrafı</span>
+            <label className="focus-ring mt-2 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-amberGold/30 bg-amberGold/5 p-6 text-center transition hover:border-amberGold/60 hover:bg-amberGold/10">
+              <ImagePlus className="mb-3 text-amberGold" size={30} />
+              <span className="font-serif text-sm font-medium text-parchment-100">
+                Fotoğraf seç veya sürükle
               </span>
-              <span className="mt-1 text-xs text-gray-500">
-                Oranı korunur, telefona uygun şekilde küçültülür. En fazla 18 MB.
+              <span className="mt-1 font-serif text-xs italic text-parchment-400">
+                Oranı korunarak hatıra albümüne eklenir (En fazla 18 MB)
               </span>
               <input
                 type="file"
@@ -471,16 +435,16 @@ export default function NewMemoryPage() {
           </div>
 
           {photoPreview && (
-            <div className="relative mt-4 overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+            <div className="polaroid-frame relative mt-4">
               <img
                 src={photoPreview}
                 alt="Seçilen anı fotoğrafı"
-                className="max-h-[30rem] w-full object-contain"
+                className="max-h-[28rem] w-full rounded-md object-contain"
               />
               <button
                 type="button"
                 onClick={clearPhoto}
-                className="focus-ring absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-lg bg-night/80 text-gray-100 backdrop-blur transition hover:bg-night"
+                className="focus-ring absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/80 text-parchment-100 backdrop-blur transition hover:bg-black"
                 aria-label="Fotoğrafı kaldır"
               >
                 <X size={18} />
@@ -488,15 +452,19 @@ export default function NewMemoryPage() {
             </div>
           )}
 
-          {message && <p className="mt-4 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{message}</p>}
+          {message && (
+            <p className="font-serif text-sm italic text-amberGold">{message}</p>
+          )}
 
-          <button
-            disabled={loading}
-            className="primary-action focus-ring mt-6 w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            <Save size={18} />
-            {loading ? "Kaydediliyor" : "Kaydet"}
-          </button>
+          <div className="pt-4">
+            <button
+              disabled={loading}
+              className="primary-action focus-ring w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save size={18} />
+              {loading ? "Deftere Kaydediliyor..." : "Hatırayı Kaydet"}
+            </button>
+          </div>
         </form>
       </div>
     </section>
@@ -505,8 +473,8 @@ export default function NewMemoryPage() {
 
 function Field({ label, children }) {
   return (
-    <label className="mt-4 block min-w-0">
-      <span className="text-sm text-gray-400">{label}</span>
+    <label className="block min-w-0">
+      <span className="font-serif text-sm text-parchment-300">{label}</span>
       {children}
     </label>
   );

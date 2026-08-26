@@ -1,328 +1,239 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LockKeyhole, LogOut, Mail, PenLine, UserRound } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import ExpandableText from "@/components/ExpandableText";
+import {
+  Lock,
+  Mail,
+  MailOpen,
+  PenLine
+} from "lucide-react";
+import Link from "next/link";
+import SealedCountdown from "@/components/SealedCountdown";
+import { useAuth } from "@/components/AuthProvider";
 
-const PAGE_SIZE = 8;
-const PIN_USERS = {
-  "3773": "Efsa",
-  "1453": "Enes"
-};
+const PAGE_SIZE = 6;
 
-function mergeUniqueItems(current, nextItems) {
-  const existingIds = new Set(current.map((item) => item.id));
-  return [...current, ...nextItems.filter((item) => !existingIds.has(item.id))];
-}
+function formatDate(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
 
-function formatCountdown(value, now) {
-  const target = new Date(value).getTime();
-  const diff = Math.max(0, target - now);
-
-  if (diff <= 0) return "Açılabilir";
-
-  const totalSeconds = Math.floor(diff / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (days > 0) return `${days} gün ${hours} saat`;
-  if (hours > 0) return `${hours} saat ${minutes} dk`;
-  if (minutes > 0) return `${minutes} dk ${seconds} sn`;
-  return `${seconds} sn`;
-}
-
-function getAuthorBadgeClasses(author) {
-  if (author === "Efsa") {
-    return "border-[#ff8aaa]/35 bg-[#ff8aaa]/14 text-[#ffb3c7]";
-  }
-
-  return "border-white/10 bg-black/70 text-gray-100";
-}
-
-function getRecipientBadgeClasses(recipient) {
-  if (recipient === "Ortak") {
-    return "border-roseSoft/35 bg-roseSoft/10 text-roseSoft";
-  }
-
-  if (recipient === "Efsa") {
-    return "border-[#ff8aaa]/35 bg-[#ff8aaa]/12 text-[#ffb3c7]";
-  }
-
-  return "border-white/10 bg-black/60 text-gray-200";
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 export default function LettersPage() {
-  const [pin, setPin] = useState("");
-  const [currentUser, setCurrentUser] = useState("");
-  const [letters, setLetters] = useState([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [initialLoaded, setInitialLoaded] = useState(false);
+  const { displayName } = useAuth();
   const [error, setError] = useState("");
-  const [now, setNow] = useState(Date.now());
-  const sentinelRef = useRef(null);
+  const [letters, setLetters] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
   const pageRef = useRef(0);
   const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const sentinelRef = useRef(null);
 
-  const unlocked = Boolean(currentUser);
+  const fetchLetters = useCallback(async () => {
+    if (loadingRef.current || !hasMoreRef.current) return;
 
-  const fetchLetters = useCallback(async ({ reset = false } = {}) => {
-    if (!supabase) {
-      setHasMore(false);
-      setInitialLoaded(true);
-      setLoading(false);
-      setError("Supabase ortam değişkenleri tanımlı değil.");
-      return;
-    }
-
-    if (loadingRef.current) return;
     loadingRef.current = true;
+    setLoading(true);
 
-    const nextPage = reset ? 0 : pageRef.current;
-    const from = nextPage * PAGE_SIZE;
+    const from = pageRef.current * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    setLoading(true);
-    const { data, error: fetchError } = await supabase
-      .from("letters")
-      .select("id, author, recipient, title, content, open_at, created_at")
-      .order("open_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .range(from, to);
+    try {
+      const res = await fetch(`/api/letters?from=${from}&to=${to}`);
+      const json = await res.json();
 
-    loadingRef.current = false;
-    setLoading(false);
-    setInitialLoaded(true);
+      if (!res.ok || json.error) {
+        setError(json.error || "Mektuplar yüklenemedi.");
+        loadingRef.current = false;
+        setLoading(false);
+        setInitialLoaded(true);
+        return;
+      }
 
-    if (fetchError) {
-      setError(fetchError.message);
-      return;
+      const nextLetters = json.data || [];
+      setLetters((prev) => (pageRef.current === 0 ? nextLetters : [...prev, ...nextLetters]));
+      pageRef.current += 1;
+
+      const noMore = nextLetters.length < PAGE_SIZE;
+      hasMoreRef.current = !noMore;
+      setHasMore(!noMore);
+      setInitialLoaded(true);
+    } catch (err) {
+      setError(err.message || "Bağlantı hatası.");
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
     }
-
-    const nextItems = data || [];
-    setLetters((current) => (reset ? nextItems : mergeUniqueItems(current, nextItems)));
-    pageRef.current = nextPage + 1;
-    setHasMore(nextItems.length === PAGE_SIZE);
-    setError("");
   }, []);
 
   useEffect(() => {
-    const savedUser = window.localStorage.getItem("letters-user");
-    if (savedUser === "Enes" || savedUser === "Efsa") setCurrentUser(savedUser);
-  }, []);
+    if (displayName) fetchLetters();
+  }, [displayName, fetchLetters]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!unlocked) return;
-    pageRef.current = 0;
-    setHasMore(true);
-    fetchLetters({ reset: true });
-  }, [fetchLetters, unlocked]);
-
-  useEffect(() => {
-    if (!unlocked || !supabase) return;
-
-    const channel = supabase
-      .channel("secret-letters")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "letters" },
-        () => {
-          pageRef.current = 0;
-          setHasMore(true);
-          fetchLetters({ reset: true });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchLetters, unlocked]);
-
-  useEffect(() => {
+    if (!initialLoaded) return;
     const node = sentinelRef.current;
-    if (!node || !hasMore || !initialLoaded || !unlocked) return;
+    if (!node || !hasMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) fetchLetters();
       },
-      { rootMargin: "520px" }
+      { rootMargin: "400px" }
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fetchLetters, hasMore, initialLoaded, unlocked]);
-
-  function unlock(event) {
-    event.preventDefault();
-    const user = PIN_USERS[pin];
-
-    if (user) {
-      setCurrentUser(user);
-      window.localStorage.setItem("letters-user", user);
-      setPin("");
-      setError("");
-      return;
-    }
-
-    setError("Şifre yanlış. Bir daha deneyelim.");
-  }
-
-  function logout() {
-    setCurrentUser("");
-    setPin("");
-    setLetters([]);
-    setInitialLoaded(false);
-    setHasMore(true);
-    pageRef.current = 0;
-    window.localStorage.removeItem("letters-user");
-  }
-
-  if (!unlocked) {
-    return (
-      <section className="page-shell flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
-        <form onSubmit={unlock} className="page-panel w-full p-6 sm:p-7">
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
-            <LockKeyhole size={22} />
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-50">Gizli mektuplar</h1>
-          <p className="mt-2 text-sm leading-6 text-gray-400">
-            Listeyi görmek için PIN gir. Zamanı gelen mektuplar direkt görünür.
-          </p>
-          <input
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-            type="password"
-            inputMode="numeric"
-            placeholder="PIN"
-            className="focus-ring mt-6 h-12 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 text-center text-lg tracking-[0.45em] text-gray-50 placeholder:text-gray-600"
-          />
-          {error && <p className="mt-3 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
-          <button className="primary-action focus-ring mt-5 w-full">Aç</button>
-        </form>
-      </section>
-    );
-  }
+  }, [fetchLetters, hasMore, initialLoaded]);
 
   return (
-    <section className="page-shell">
-      <div className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-6 sm:px-8 lg:px-10">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <div className="page-kicker">
-                <Mail size={15} className="text-roseDeep" />
-                Gizli Mektuplar
-              </div>
-              <p className="mt-3 text-sm leading-6 text-gray-500">
-                Geleceğe bırakılan, zamanı gelince kendiliğinden görünen küçük mektuplar.
-              </p>
-            </div>
+    <section className="mx-auto flex min-h-[calc(100vh-6.5rem)] w-full max-w-5xl flex-col justify-start py-2 sm:py-6">
+      {/* Header & Actions */}
+      <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 px-3 pt-2 pb-5 sm:pt-4 sm:pb-6 border-b border-white/[0.06]">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-amberGold/10 blur-[90px]" />
 
-            <div className="grid gap-2 sm:flex">
-              <Link href="/mektuplar/yeni" className="primary-action focus-ring w-full sm:w-auto">
-                <PenLine size={16} />
-                Yeni Mektup
-              </Link>
-              <button type="button" onClick={logout} className="ghost-action focus-ring justify-center">
-                <LogOut size={16} />
-                Çıkış
-              </button>
-            </div>
-          </div>
+        <div className="text-center sm:text-left">
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-parchment-50 sm:text-5xl lg:text-6xl">
+            Mühürlü Mektuplar
+          </h1>
         </div>
 
-        <div className="px-3 py-5 sm:px-8 lg:px-10">
-          {error && <p className="mb-5 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{error}</p>}
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/mektuplar/yeni"
+            className="primary-action focus-ring shadow-lg active:scale-95 text-center shrink-0"
+          >
+            <PenLine size={16} />
+            Yeni Mektup Yaz
+          </Link>
+        </div>
+      </div>
 
-          {!initialLoaded && (
-            <div className="space-y-4">
-              {[0, 1, 2].map((item) => (
-                <div key={item} className="soft-card h-40 animate-pulse" />
-              ))}
-            </div>
-          )}
+      {/* Letters Stream */}
+      <div className="mt-6 w-full">
+        {error && (
+          <p className="mb-6 break-words rounded-xl border border-dustyRose/30 bg-dustyRose/10 p-4 text-xs text-dustyRose-light sm:text-sm">
+            {error}
+          </p>
+        )}
 
-          <div className="space-y-4">
-            {initialLoaded && letters.length === 0 && !error && (
-              <div className="page-panel p-7 text-center text-gray-400">
-                Henüz mektup yazılmamış.
-              </div>
-            )}
-
-            {letters.map((letter) => (
-              <LetterCard key={letter.id} letter={letter} now={now} currentUser={currentUser} />
+        {!initialLoaded && (
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+            {[0, 1, 2, 3].map((item) => (
+              <div key={item} className="editorial-card h-56 animate-pulse" />
             ))}
           </div>
+        )}
 
-          <div ref={sentinelRef} className="h-8" />
+        {initialLoaded && letters.length === 0 && !error && (
+          <div className="editorial-card p-10 text-center sm:p-16">
+            <div className="wax-seal mx-auto mb-4 scale-110">
+              <Mail size={18} />
+            </div>
+            <h3 className="font-serif text-xl font-medium text-parchment-100">
+              Henüz mektup yazılmamış
+            </h3>
+            <p className="mt-1 font-serif text-sm italic text-parchment-400">
+              Geleceğe ilk mektubunuzu yukarıdaki butondan mühürleyebilirsiniz.
+            </p>
+          </div>
+        )}
 
-          {loading && initialLoaded && (
-            <p className="mt-5 text-center text-sm text-gray-500">Mektuplar yükleniyor...</p>
-          )}
-
-          {!hasMore && letters.length > 0 && (
-            <p className="mt-5 text-center text-sm text-gray-600">Tüm mektuplar yüklendi.</p>
-          )}
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+          {letters.map((letter) => (
+            <LetterCard
+              key={letter.id}
+              letter={letter}
+              currentUser={displayName}
+            />
+          ))}
         </div>
+
+        <div ref={sentinelRef} className="h-10" />
+
+        {loading && initialLoaded && (
+          <p className="mt-6 text-center font-serif text-sm italic text-amberGold animate-pulse">
+            Daha fazla mektup yükleniyor...
+          </p>
+        )}
+
+        {!hasMore && letters.length > 0 && (
+          <p className="mt-10 text-center font-serif text-xs italic tracking-wider text-parchment-500">
+            ✦ Tüm mektuplar listelendi ✦
+          </p>
+        )}
       </div>
     </section>
   );
 }
 
-function LetterCard({ letter, now, currentUser }) {
-  const isTimeOpen = new Date(letter.open_at).getTime() <= now;
+function LetterCard({ letter, currentUser }) {
+  const isTimeOpen = new Date(letter.open_at).getTime() <= Date.now();
   const canCurrentUserOpen = letter.recipient === "Ortak" || letter.recipient === currentUser;
-  const countdown = formatCountdown(letter.open_at, now);
-  const shouldShowContent = isTimeOpen && canCurrentUserOpen;
+  const shouldShowContent = isTimeOpen && canCurrentUserOpen && Boolean(letter.content);
+  const isEfsa = letter.author === "Efsa";
 
   return (
     <article
-      className={`feed-card content-visibility-auto p-4 sm:p-6 ${
-        letter.author === "Efsa" ? "feed-card-efsa" : ""
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border p-5 sm:p-6 transition-all duration-300 ${
+        shouldShowContent
+          ? isEfsa
+            ? "border-dustyRose/25 bg-gradient-to-b from-[#211619]/90 to-[#120e10]/95 hover:border-dustyRose/40 hover:shadow-[0_12px_30px_rgba(212,122,136,0.15)]"
+            : "border-amberGold/25 bg-gradient-to-b from-[#201815]/90 to-[#120f0d]/95 hover:border-amberGold/40 hover:shadow-[0_12px_30px_rgba(224,169,109,0.15)]"
+          : "border-white/[0.08] bg-gradient-to-b from-[#181311]/90 to-[#0e0c0b]/95 hover:border-white/15"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-lg border px-3 py-1 text-xs ${getAuthorBadgeClasses(letter.author)}`}>
-          <UserRound size={12} className="mr-1 inline" />
-          {letter.author}
-        </span>
-        <span className={`rounded-lg border px-3 py-1 text-xs ${getRecipientBadgeClasses(letter.recipient)}`}>
-          Kime: {letter.recipient}
-        </span>
+      <div>
+        <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+          <div className="flex items-center gap-1.5 text-xs font-serif">
+            <span className={isEfsa ? "font-semibold text-dustyRose-light" : "font-semibold text-amberGold"}>
+              {letter.author}
+            </span>
+            <span className="text-parchment-500">→</span>
+            <span className="text-parchment-300 italic">{letter.recipient}</span>
+          </div>
+
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-serif text-[10px] font-semibold uppercase tracking-wider ${
+              shouldShowContent
+                ? "border border-amberGold/30 bg-amberGold/15 text-amberGold-light"
+                : "border border-dustyRose/30 bg-dustyRose/15 text-dustyRose-light"
+            }`}
+          >
+            {shouldShowContent ? <MailOpen size={10} /> : <Lock size={10} />}
+            {shouldShowContent ? "Mührü Açıldı" : "Mühürlü Zarf"}
+          </span>
+        </div>
+
+        <h2 className="mt-3.5 font-serif text-xl font-normal leading-snug text-parchment-50 sm:text-2xl">
+          {letter.title}
+        </h2>
+
+        {shouldShowContent ? (
+          <div className="mt-3.5 rounded-xl border border-white/[0.06] bg-black/25 p-4">
+            <p className="whitespace-pre-wrap font-serif text-xs leading-relaxed text-parchment-200 sm:text-sm">
+              {letter.content}
+            </p>
+          </div>
+        ) : (
+          <SealedCountdown targetIso={letter.open_at} />
+        )}
       </div>
 
-      <h2 className="emoji-safe mt-4 break-words text-[1.35rem] font-semibold leading-tight text-gray-50 [overflow-wrap:anywhere] sm:text-2xl">
-        {letter.title}
-      </h2>
-
-      {shouldShowContent ? (
-        <div className="mt-4">
-          <ExpandableText text={letter.content} limit={420} className="leading-7 text-gray-200" />
-        </div>
-      ) : (
-        <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-4">
-          {!isTimeOpen ? (
-            <p className="text-sm leading-6 text-gray-500">
-              Bu mektup henüz açılmadı. Geri sayım: <span className="text-roseSoft">{countdown}</span>
-            </p>
-          ) : (
-            <p className="text-sm leading-6 text-gray-500">
-              Bu mektup sadece {letter.recipient} tarafından açılabilir.
-            </p>
-          )}
-        </div>
-      )}
+      <div className="mt-4 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] font-serif text-parchment-400">
+        <span>Açılış: {formatDate(letter.open_at)}</span>
+      </div>
     </article>
   );
 }

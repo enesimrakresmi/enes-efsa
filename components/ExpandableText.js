@@ -22,9 +22,9 @@ export default function ExpandableText({ text, limit = 260, className = "" }) {
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="focus-ring mt-3 text-sm font-medium text-roseSoft transition hover:text-[#aac7ff]"
+          className="focus-ring mt-2 font-serif text-sm font-medium italic text-amberGold transition-colors hover:text-amberGold-light underline underline-offset-4"
         >
-          {expanded ? "Kısalt" : "Devamını oku"}
+          {expanded ? "Daha az göster" : "Devamını oku →"}
         </button>
       )}
     </div>

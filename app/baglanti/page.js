@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Fingerprint, HeartHandshake, Radio } from "lucide-react";
+import { Fingerprint, Heart, HeartHandshake, Radio, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/components/AuthProvider";
 
 const DISTANCE_TO_CONNECT = 0.07;
 const BROADCAST_INTERVAL = 80;
@@ -181,34 +182,43 @@ export default function ConnectionPage() {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      className="fixed inset-0 touch-none select-none overflow-hidden bg-night md:left-24"
+      className="fixed inset-0 touch-none select-none overflow-hidden bg-[#0d0b0a] md:left-20"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.024)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.024)_1px,transparent_1px),linear-gradient(135deg,rgba(19,21,26,0.94),rgba(13,14,18,0.98))] bg-[size:42px_42px,42px_42px,auto]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-roseDeep/70 to-transparent" />
+      {/* Background ambient lighting */}
 
-      <div className="pointer-events-none absolute left-4 right-4 top-4 z-20 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#101219]/88 px-4 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.32)] backdrop-blur-xl md:left-8 md:right-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
-            <HeartHandshake size={20} />
-          </div>
-          <p className="text-sm font-semibold text-gray-100">
-            {connected ? "Bağlı" : "Bağlanıyor"}
-          </p>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(224,169,109,0.08),transparent_50%),radial-gradient(ellipse_at_70%_80%,rgba(212,122,136,0.08),transparent_50%)]" />
+
+      {/* Top Status Bar & Invite Button */}
+      <div className="pointer-events-none absolute left-0 right-0 top-[calc(0.75rem+env(safe-area-inset-top,0px))] z-30 flex flex-col items-center gap-3 px-3 sm:px-6">
+        {/* Status indicator */}
+        <div className="flex items-center gap-2 rounded-full border border-amberGold/20 bg-[#15110f]/90 px-3.5 py-1.5 text-xs font-serif shadow-lg backdrop-blur-xl">
+          <Radio size={13} className={partnerVisible ? "text-dustyRose animate-pulse" : "text-parchment-500"} />
+          <span className={partnerVisible ? "text-dustyRose-light font-medium" : "text-parchment-400"}>
+            {partnerVisible ? "Dokunuyor" : "Bekleniyor"}
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Radio size={16} className={partnerVisible ? "text-roseSoft" : "text-gray-600"} />
-          {partnerVisible ? "Dokunuyor" : "Bekleniyor"}
+
+        {/* Invite button - prominent placement */}
+        <div className="pointer-events-auto">
+          <TouchInviteButton />
         </div>
       </div>
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 text-center">
-        <h1 className="mt-5 text-3xl font-semibold text-gray-100 sm:text-5xl">
-          Dokun
+      {/* Center Atmospheric Prompt */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 text-center px-4">
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-parchment-50 sm:text-7xl">
+          Ekrana Dokun
         </h1>
+        <p className="mt-2 font-handwriting text-lg text-amberGold/70 sm:text-2xl">
+          İki parmak buluştuğunda kalpler birleşir
+        </p>
       </div>
 
-      <FingerVisual refEl={myFingerRef} mine />
+      {/* Visual Fingerprints */}
+      <FingerVisual refEl={myFingerRef} isMine />
       <FingerVisual refEl={partnerFingerRef} />
+
+      {/* Golden & Rose Burst Animation Container */}
       <div ref={pulseRef} className="connection-burst pointer-events-none absolute z-30">
         <span className="connection-burst-core" />
         <span className="connection-burst-ring connection-burst-ring-one" />
@@ -225,19 +235,67 @@ export default function ConnectionPage() {
   );
 }
 
-function FingerVisual({ refEl, mine = false }) {
+function FingerVisual({ refEl, isMine = false }) {
   return (
     <div
       ref={refEl}
-      className={`finger-visual pointer-events-none fixed left-0 top-0 z-10 flex h-28 w-28 items-center justify-center rounded-lg opacity-0 ${
-        mine
-          ? "text-white/75 drop-shadow-[0_0_18px_rgba(255,255,255,0.3)]"
-          : "text-roseSoft drop-shadow-[0_0_30px_rgba(147,183,255,0.78)]"
+      className={`finger-visual pointer-events-none fixed left-0 top-0 z-10 flex h-28 w-28 items-center justify-center rounded-2xl opacity-0 ${
+        isMine
+          ? "text-amberGold drop-shadow-[0_0_30px_rgba(224,169,109,0.8)]"
+          : "text-dustyRose drop-shadow-[0_0_30px_rgba(212,122,136,0.85)]"
       }`}
     >
-      <div className="absolute inset-2 rounded-lg border border-current opacity-12" />
-      <div className="absolute inset-5 rounded-lg bg-current opacity-10 blur-md" />
-      <Fingerprint size={66} strokeWidth={1.55} />
+      <div className="absolute inset-2 rounded-2xl border border-current opacity-25 animate-ping" style={{ animationDuration: "3s" }} />
+      <div className="absolute inset-4 rounded-2xl bg-current opacity-15 blur-md" />
+      <Fingerprint size={68} strokeWidth={1.6} />
     </div>
   );
 }
+
+function TouchInviteButton() {
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { displayName, partner } = useAuth();
+
+  async function sendInvite(e) {
+    if (e) e.stopPropagation();
+    setLoading(true);
+
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUser: partner,
+          senderUser: displayName,
+          title: "EfEs • Canlı Bağlantı",
+          body: `${displayName} seni Canlı Bağlantı ekranında bekliyor, ekrana dokun! ✨`,
+          url: "/baglanti",
+          tag: "touch-invite"
+        })
+      });
+      setSent(true);
+      setTimeout(() => setSent(false), 30000); // 30 sec visual reset
+    } catch {
+      // Ignore
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); sendInvite(e); }}
+      disabled={loading || sent}
+      className="inline-flex items-center gap-2 rounded-2xl border border-amberGold/30 bg-[#161210]/95 px-5 py-2.5 font-serif text-sm font-medium text-amberGold-light shadow-xl backdrop-blur-xl transition hover:border-amberGold/60 hover:bg-amberGold/15 active:scale-95 disabled:opacity-60"
+    >
+      <Sparkles size={16} className={loading ? "animate-spin" : "text-amberGold"} />
+      <span>{sent ? "Çağrı İletildi 🕊️" : loading ? "İletiliyor..." : "Çağrı Gönder"}</span>
+    </button>
+  );
+}
+
+

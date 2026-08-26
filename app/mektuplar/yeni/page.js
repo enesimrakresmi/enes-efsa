@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Clock3,
-  LockKeyhole,
   Mail,
   Save,
   UsersRound,
@@ -15,11 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import TextStats from "@/components/TextStats";
-
-const PIN_USERS = {
-  "3773": "Efsa",
-  "1453": "Enes"
-};
+import { useAuth } from "@/components/AuthProvider";
 
 function getPartner(author) {
   if (author === "Enes") return "Efsa";
@@ -64,11 +59,11 @@ function formatPreview(dateValue, timeValue) {
 
 export default function NewLetterPage() {
   const router = useRouter();
+  const { displayName, partner } = useAuth();
+  const author = displayName;
   const initialOpenAt = useMemo(() => getPresetDate(1, 9, 0), []);
   const minDate = useMemo(() => toLocalDateValue(new Date()), []);
 
-  const [pin, setPin] = useState("");
-  const [author, setAuthor] = useState("");
   const [recipientMode, setRecipientMode] = useState("partner");
   const [form, setForm] = useState({
     title: "",
@@ -81,21 +76,6 @@ export default function NewLetterPage() {
 
   const recipient = recipientMode === "joint" ? "Ortak" : getPartner(author);
   const openPreview = formatPreview(form.open_date, form.open_time);
-
-  function unlock(event) {
-    event.preventDefault();
-    const user = PIN_USERS[pin];
-
-    if (!user) {
-      setMessage("Şifre yanlış.");
-      return;
-    }
-
-    setAuthor(user);
-    window.localStorage.setItem("letters-user", user);
-    setPin("");
-    setMessage("");
-  }
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -117,12 +97,12 @@ export default function NewLetterPage() {
     event.preventDefault();
 
     if (!supabase) {
-      setMessage("Supabase bağlantısı yok. .env.local dosyasını kontrol edin.");
+      setMessage("Supabase bağlantısı yok. Lütfen bağlantınızı kontrol edin.");
       return;
     }
 
     if (!form.title.trim() || !form.content.trim() || !form.open_date || !form.open_time) {
-      setMessage("Başlık, mektup, tarih ve saat zorunlu.");
+      setMessage("Başlık, mektup içeriği, açılma tarihi ve saati zorunludur.");
       return;
     }
 
@@ -133,7 +113,7 @@ export default function NewLetterPage() {
     }
 
     if (openAt.getTime() <= Date.now()) {
-      setMessage("Bu bir gelecek mektubu. Lütfen şu andan daha ileri bir zaman seç.");
+      setMessage("Bu bir gelecek mektubudur. Lütfen şu andan daha ileri bir zaman belirleyin.");
       return;
     }
 
@@ -150,122 +130,123 @@ export default function NewLetterPage() {
 
     setLoading(false);
 
-    if (error) {
-      setMessage(error.message);
-      return;
+    // Send push notification to partner
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUser: partner,
+          senderUser: author,
+          title: "EfEs • Mühürlü Mektup",
+          body: `${author} sana mühürlü yeni bir mektup bıraktı 💌`,
+          url: "/mektuplar",
+          tag: "new-letter"
+        })
+      });
+    } catch {
+      // Ignore background push error
     }
 
     router.push("/mektuplar");
   }
 
-  if (!author) {
-    return (
-      <section className="page-shell flex min-h-[calc(100vh-6rem)] max-w-xl items-center justify-center">
-        <form onSubmit={unlock} className="page-panel w-full p-6 sm:p-7">
-          <Link href="/mektuplar" className="ghost-action focus-ring mb-6">
-            <ArrowLeft size={16} />
-            Mektuplara dön
-          </Link>
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-roseSoft/20 bg-roseSoft/10 text-roseSoft">
-            <LockKeyhole size={22} />
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-50">Mektup kilidi</h1>
-          <p className="mt-2 text-sm leading-6 text-gray-400">
-            Her yeni mektupta kimin yazdığını netleştirmek için PIN gir.
-          </p>
-          <input
-            value={pin}
-            onChange={(event) => setPin(event.target.value)}
-            type="password"
-            inputMode="numeric"
-            placeholder="PIN"
-            className="focus-ring mt-6 h-12 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 text-center text-lg tracking-[0.45em] text-gray-50 placeholder:text-gray-600"
-          />
-          {message && <p className="mt-3 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{message}</p>}
-          <button className="primary-action focus-ring mt-5 w-full">Aç</button>
-        </form>
-      </section>
-    );
-  }
-
   return (
-    <section className="page-shell max-w-5xl">
-      <Link href="/mektuplar" className="ghost-action focus-ring mb-5">
-        <ArrowLeft size={16} />
-        Mektuplara dön
-      </Link>
+    <section className="mx-auto flex min-h-[calc(100vh-6.5rem)] w-full max-w-5xl flex-col justify-start py-2 sm:py-6">
+      <div className="mb-4">
+        <Link href="/mektuplar" className="ghost-action focus-ring inline-flex">
+          <ArrowLeft size={16} />
+          Mektuplara Dön
+        </Link>
+      </div>
 
-      <form onSubmit={saveLetter} className="page-surface overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-6 sm:px-8">
-          <div className="page-kicker">
-            <Mail size={15} className="text-roseDeep" />
-            Yeni Mektup
-          </div>
-          <h1 className="mt-5 text-3xl font-semibold text-gray-50 sm:text-4xl">
-            Geleceğe bırak
+      <form onSubmit={saveLetter} className="relative w-full overflow-hidden rounded-2xl border border-amberGold/20 bg-gradient-to-b from-[#1a1512]/95 via-[#13100e]/95 to-[#0e0c0b]/98 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-amberGold/40 to-transparent" />
+
+        <div className="border-b border-white/[0.06] pb-5">
+          <h1 className="font-serif text-2xl font-normal text-parchment-50 sm:text-4xl">
+            Mühürlü Mektup Yaz
           </h1>
-          <p className="mt-3 text-sm text-gray-400">
-            Yazan: {author} · Kime: {recipient}
+          <p className="mt-1 font-serif text-xs italic text-parchment-400 sm:text-sm">
+            Kilit açılış tarihini belirleyin; mektup o zamana kadar mühürlü kalacaktır.
+          </p>
+          <p className="mt-2 font-serif text-xs italic text-parchment-400">
+            Yazan: <span className="text-amberGold font-semibold">{author}</span> • Kime: <span className="text-dustyRose-light font-semibold">{recipient}</span>
           </p>
         </div>
 
-        <div className="px-4 py-5 sm:px-8">
+        <div className="p-5 sm:p-8 space-y-6">
+          {/* Recipient Mode Selection */}
           <div>
-            <span className="text-sm text-gray-400">Bu mektup kime yazıldı?</span>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <span className="font-serif text-sm text-parchment-300">Bu mektubun alıcısı kim?</span>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setRecipientMode("partner")}
-                className={`focus-ring rounded-lg border px-4 py-3 text-left transition ${
+                className={`focus-ring rounded-xl border p-4 text-left transition ${
                   recipientMode === "partner"
-                    ? "border-roseSoft/60 bg-roseSoft/15 text-gray-50"
-                    : "border-white/10 bg-white/[0.03] text-gray-400 hover:text-gray-100"
+                    ? "border-amberGold/60 bg-amberGold/15 text-parchment-50 shadow-sm"
+                    : "border-white/10 bg-black/20 text-parchment-400 hover:text-parchment-200"
                 }`}
               >
-                <UserRound size={17} className="mb-2" />
-                <span className="block font-medium">Karşı tarafa</span>
-                <span className="mt-1 block text-xs text-gray-500">{getPartner(author)} açabilsin.</span>
+                <div className="flex items-center gap-2 text-amberGold font-serif font-semibold">
+                  <UserRound size={17} />
+                  <span>{getPartner(author)} İçin</span>
+                </div>
+                <span className="mt-1 block font-serif text-xs italic text-parchment-400">
+                  Sadece {getPartner(author)} zamanı gelince okuyabilsin.
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setRecipientMode("joint")}
-                className={`focus-ring rounded-lg border px-4 py-3 text-left transition ${
+                className={`focus-ring rounded-xl border p-4 text-left transition ${
                   recipientMode === "joint"
-                    ? "border-roseSoft/60 bg-roseSoft/15 text-gray-50"
-                    : "border-white/10 bg-white/[0.03] text-gray-400 hover:text-gray-100"
+                    ? "border-dustyRose/60 bg-dustyRose/15 text-parchment-50 shadow-sm"
+                    : "border-white/10 bg-black/20 text-parchment-400 hover:text-parchment-200"
                 }`}
               >
-                <UsersRound size={18} className="mb-2" />
-                <span className="block font-medium">Ortak okunacak</span>
-                <span className="mt-1 block text-xs text-gray-500">İkiniz de zamanı gelince açabilirsiniz.</span>
+                <div className="flex items-center gap-2 text-dustyRose font-serif font-semibold">
+                  <UsersRound size={17} />
+                  <span>Ortak Mektup</span>
+                </div>
+                <span className="mt-1 block font-serif text-xs italic text-parchment-400">
+                  Zamanı geldiğinde ikimiz birlikte okuyalım.
+                </span>
               </button>
             </div>
           </div>
 
-          <label className="mt-5 block">
-            <span className="text-sm text-gray-400">Başlık</span>
+          {/* Title */}
+          <div>
+            <span className="font-serif text-sm text-parchment-300">Mektup Başlığı</span>
             <input
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
-              placeholder="Örn: Bunu zamanı gelince oku"
-              className="focus-ring mt-2 h-12 w-full rounded-lg border border-white/10 bg-white/[0.04] px-4 text-gray-100 placeholder:text-gray-600"
+              placeholder="Örn: 1. Yılımızda Açılacak Özel Not"
+              className="focus-ring mt-1.5 h-12 w-full rounded-xl border border-amberGold/20 bg-black/30 px-4 font-serif text-base text-parchment-100 placeholder:text-parchment-500"
             />
             <TextStats value={form.title} label="Başlık" />
-          </label>
+          </div>
 
-          <section className="mt-5 rounded-lg border border-white/10 bg-black/20 p-4 sm:p-5">
+          {/* Timing Section */}
+          <section className="rounded-xl border border-amberGold/20 bg-black/30 p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <span className="text-sm font-medium text-gray-300">Ne zaman açılsın?</span>
-                <p className="mt-1 text-xs leading-5 text-gray-500">
-                  Mektup sadece gelecekte seçtiğin zamanda açılır.
+                <span className="font-serif text-sm font-semibold text-parchment-100">
+                  Mühür Ne Zaman Kırılsın?
+                </span>
+                <p className="mt-0.5 font-serif text-xs italic text-parchment-400">
+                  Mektup bu zamana kadar kesinlikle kilitli ve mühürlü kalacaktır.
                 </p>
               </div>
-              <div className="rounded-lg border border-roseSoft/20 bg-roseSoft/10 px-3 py-2 text-sm text-roseSoft">
+              <div className="rounded-xl border border-amberGold/30 bg-amberGold/15 px-3.5 py-1.5 font-serif text-xs font-semibold text-amberGold">
                 {openPreview}
               </div>
             </div>
 
+            {/* Timing Presets */}
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 { label: "Yarın sabah", days: 1, hour: 9 },
@@ -277,64 +258,70 @@ export default function NewLetterPage() {
                   key={preset.label}
                   type="button"
                   onClick={() => applyPreset(preset.days, preset.hour)}
-                  className="focus-ring rounded-lg border border-white/10 bg-white/[0.035] px-3 py-3 text-sm text-gray-300 transition hover:border-roseSoft/45 hover:bg-roseSoft/10 hover:text-gray-50"
+                  className="focus-ring rounded-lg border border-white/10 bg-white/[0.03] p-2.5 font-serif text-xs text-parchment-300 transition hover:border-amberGold/40 hover:bg-amberGold/10 hover:text-parchment-100"
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
 
+            {/* Custom Date / Time inputs */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="block rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                <span className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                  <CalendarDays size={14} />
-                  Tarih
+              <label className="block rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <span className="mb-1.5 flex items-center gap-1.5 font-serif text-xs font-medium text-parchment-400">
+                  <CalendarDays size={14} className="text-amberGold" />
+                  Açılış Tarihi
                 </span>
                 <input
                   value={form.open_date}
                   onChange={(event) => updateField("open_date", event.target.value)}
                   type="date"
                   min={minDate}
-                  className="focus-ring h-11 w-full min-w-0 rounded-lg border border-white/10 bg-[#0d0f15] px-3 text-gray-100 [color-scheme:dark]"
+                  className="focus-ring h-10 w-full rounded-lg border border-amberGold/15 bg-black/40 px-3 font-serif text-sm text-parchment-100"
                 />
               </label>
 
-              <label className="block rounded-lg border border-white/10 bg-white/[0.035] p-3">
-                <span className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-                  <Clock3 size={14} />
-                  Saat
+              <label className="block rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <span className="mb-1.5 flex items-center gap-1.5 font-serif text-xs font-medium text-parchment-400">
+                  <Clock3 size={14} className="text-amberGold" />
+                  Açılış Saati
                 </span>
                 <input
                   value={form.open_time}
                   onChange={(event) => updateField("open_time", event.target.value)}
                   type="time"
-                  className="focus-ring h-11 w-full min-w-0 rounded-lg border border-white/10 bg-[#0d0f15] px-3 text-gray-100 [color-scheme:dark]"
+                  className="focus-ring h-10 w-full rounded-lg border border-amberGold/15 bg-black/40 px-3 font-serif text-sm text-parchment-100"
                 />
               </label>
             </div>
           </section>
 
-          <label className="mt-5 block">
-            <span className="text-sm text-gray-400">Mektup</span>
+          {/* Letter Content */}
+          <div>
+            <span className="font-serif text-sm text-parchment-300">Mektup Metni</span>
             <textarea
               value={form.content}
               onChange={(event) => updateField("content", event.target.value)}
-              placeholder="Bugünden geleceğe küçük bir şey bırak..."
+              placeholder="Bugünden o güne bir duygu, bir temenni, sana dair hissettiklerim..."
               rows={14}
-              className="focus-ring mt-2 min-h-[22rem] w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] p-4 leading-7 text-gray-100 placeholder:text-gray-600"
+              className="focus-ring mt-1.5 min-h-[22rem] w-full resize-y rounded-xl border border-amberGold/20 bg-black/30 p-4 font-serif leading-relaxed text-parchment-100 placeholder:text-parchment-500"
             />
             <TextStats value={form.content} label="Mektup" />
-          </label>
+          </div>
 
-          {message && <p className="mt-4 break-words text-sm text-roseSoft [overflow-wrap:anywhere]">{message}</p>}
+          {message && (
+            <p className="font-serif text-sm italic text-dustyRose">{message}</p>
+          )}
 
-          <button
-            disabled={loading || !form.title.trim() || !form.content.trim()}
-            className="primary-action focus-ring mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            <Save size={18} />
-            {loading ? "Kaydediliyor" : "Kaydet"}
-          </button>
+          <div className="pt-2">
+            <button
+              disabled={loading || !form.title.trim() || !form.content.trim()}
+              className="primary-action focus-ring w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save size={18} />
+              {loading ? "Mektup Mühürleniyor..." : "Zarfı Mühürle & Sakla"}
+            </button>
+          </div>
         </div>
       </form>
     </section>
