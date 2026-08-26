@@ -12,8 +12,10 @@ const NotificationContext = createContext({
   openModal: () => {},
   closeModal: () => {},
   enableNotifications: async () => {},
+  renewSubscription: async () => {},
   sendTestNotification: async () => {},
   subscribing: false,
+  renewing: false,
   testSending: false,
   testStatus: null
 });
@@ -37,6 +39,7 @@ export function NotificationProvider({ children }) {
   const [isIOS, setIsIOS] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [renewing, setRenewing] = useState(false);
   const [testSending, setTestSending] = useState(false);
   const [testStatus, setTestStatus] = useState(null);
 
@@ -66,7 +69,7 @@ export function NotificationProvider({ children }) {
   }, []);
 
   // Register push subscription to backend
-  const registerSubscription = useCallback(async () => {
+  const registerSubscription = useCallback(async (forceRenew = false) => {
     if (!displayName || typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return false;
     }
@@ -78,6 +81,16 @@ export function NotificationProvider({ children }) {
       if (!vapidKey) return false;
 
       let sub = await registration.pushManager.getSubscription();
+
+      if (forceRenew && sub) {
+        try {
+          await sub.unsubscribe();
+          sub = null;
+        } catch (e) {
+          console.warn("Unsubscribe existing sub error:", e);
+        }
+      }
+
       if (!sub) {
         sub = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -100,6 +113,22 @@ export function NotificationProvider({ children }) {
       return false;
     }
   }, [displayName]);
+
+  // Force renew / reset subscription
+  const renewSubscription = useCallback(async () => {
+    setRenewing(true);
+    try {
+      const ok = await registerSubscription(true);
+      if (ok && typeof Notification !== "undefined") {
+        setPermission(Notification.permission);
+      }
+      return { ok, message: ok ? "Abonelik başarıyla sıfırlandı ve yenilendi!" : "Yenileme başarısız oldu." };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    } finally {
+      setRenewing(false);
+    }
+  }, [registerSubscription]);
 
   // Auto-sync subscription if already granted
   useEffect(() => {
@@ -129,10 +158,10 @@ export function NotificationProvider({ children }) {
       setPermission(perm);
 
       if (perm === "granted") {
-        const syncSuccess = await registerSubscription();
+        const syncSuccess = await registerSubscription(true);
         return { ok: true, sync: syncSuccess };
       } else if (perm === "denied") {
-        return { ok: false, error: "Bildirim izni reddedildi. Tarayıcı ayarlarından izin verin." };
+        return { ok: false, error: "Bildirim izni reddedildi. Tarayıcı veya telefon ayarlarından izin verin." };
       } else {
         return { ok: false, error: "Bildirim izni onaylanmadı." };
       }
@@ -160,7 +189,7 @@ export function NotificationProvider({ children }) {
         body: JSON.stringify({
           targetUser: displayName,
           title: "EfEs • Test Bildirimi ✨",
-          body: `Harika! ${displayName}, telefon bildirimlerin sorunsuz çalışıyor ❤️`,
+          body: `Harika! ${displayName}, bildirimler cihazına başarıyla ulaştı ❤️`,
           url: "/"
         })
       });
@@ -168,10 +197,10 @@ export function NotificationProvider({ children }) {
       const data = await res.json();
       if (res.ok && data.ok) {
         setTestStatus("success");
-        return { ok: true };
+        return { ok: true, result: data.result };
       } else {
         setTestStatus("error");
-        return { ok: false, error: data.error || "Bildirim gönderilemedi" };
+        return { ok: false, error: data.error || data.result?.message || "Bildirim gönderilemedi" };
       }
     } catch (err) {
       setTestStatus("error");
@@ -195,8 +224,10 @@ export function NotificationProvider({ children }) {
         openModal,
         closeModal,
         enableNotifications,
+        renewSubscription,
         sendTestNotification,
         subscribing,
+        renewing,
         testSending,
         testStatus
       }}
@@ -209,3 +240,4 @@ export function NotificationProvider({ children }) {
 export function useNotification() {
   return useContext(NotificationContext);
 }
+

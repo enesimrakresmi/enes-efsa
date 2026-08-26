@@ -55,16 +55,22 @@ self.addEventListener('push', (event) => {
   }
 
   const options = {
-    body: data.body,
-    icon: data.icon || '/icons/icon.svg',
-    badge: data.badge || '/icons/icon.svg',
+    body: data.body || '',
+    icon: data.icon || '/icon.png',
+    badge: data.badge || '/icon.png',
     tag: data.tag || 'efes-notification',
-    vibrate: [200, 100, 200],
     data: data.data || { url: '/' }
   };
 
+  // Only add vibration if supported
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    options.vibrate = [200, 100, 200];
+  }
+
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.registration.showNotification(data.title || 'EfEs', options).catch((err) => {
+      console.warn('showNotification failed:', err);
+    })
   );
 });
 

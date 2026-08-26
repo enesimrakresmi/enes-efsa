@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Check, Sparkles, X, AlertCircle, Share2, Smartphone, ShieldCheck, RefreshCw, Send } from "lucide-react";
+import { Bell, Check, Sparkles, X, AlertCircle, Share2, Smartphone, ShieldCheck, RefreshCw, Send, CheckCircle2 } from "lucide-react";
 import { useNotification } from "@/components/NotificationProvider";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -14,20 +14,24 @@ export default function NotificationModal() {
     isModalOpen,
     closeModal,
     enableNotifications,
+    renewSubscription,
     sendTestNotification,
     subscribing,
+    renewing,
     testSending,
     testStatus
   } = useNotification();
 
   const { displayName } = useAuth();
   const [errorMsg, setErrorMsg] = useState(null);
+  const [infoMsg, setInfoMsg] = useState(null);
   const [justGranted, setJustGranted] = useState(false);
 
   if (!isModalOpen) return null;
 
   async function handleEnable() {
     setErrorMsg(null);
+    setInfoMsg(null);
     const result = await enableNotifications();
     if (result.ok) {
       setJustGranted(true);
@@ -37,17 +41,33 @@ export default function NotificationModal() {
     }
   }
 
+  async function handleRenew() {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    const result = await renewSubscription();
+    if (result.ok) {
+      setInfoMsg("Abonelik anahtarınız başarıyla yenilendi ve kaydedildi! ✨");
+    } else {
+      setErrorMsg(result.error || "Abonelik yenilenemedi.");
+    }
+  }
+
   async function handleTest() {
     setErrorMsg(null);
+    setInfoMsg(null);
     const result = await sendTestNotification();
-    if (!result.ok) {
+    if (result.ok) {
+      const delivered = result.result?.delivered ?? 1;
+      const count = result.result?.count ?? 1;
+      setInfoMsg(`Test bildirimi gönderildi! (${delivered}/${count} cihaza iletildi) ✨`);
+    } else {
       setErrorMsg(result.error || "Test bildirimi gönderilemedi.");
     }
   }
 
   const isGranted = permission === "granted" || justGranted;
   const isDenied = permission === "denied";
-  const needsIOSPWA = isIOS && !isStandalone && !supported;
+  const needsIOSPWA = isIOS && !isStandalone;
 
   return (
     <div
@@ -94,7 +114,7 @@ export default function NotificationModal() {
               Bildirim Merkezi
             </h2>
             <p className="mt-0.5 font-sans text-xs text-parchment-400">
-              Yeni hatıralar, mühürlü mektuplar ve anlık dokunuşlar için
+              Yeni hatıralar, mühürlü mektuplar ve canlı dokunuşlar için
             </p>
           </div>
         </div>
@@ -133,9 +153,17 @@ export default function NotificationModal() {
           </div>
         )}
 
+        {/* Info Alert */}
+        {infoMsg && (
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+            <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-400" />
+            <span>{infoMsg}</span>
+          </div>
+        )}
+
         {/* Content depending on state */}
         <div className="mt-4 space-y-3">
-          {/* iOS Safari Guide */}
+          {/* iOS Safari Guide if not in Standalone mode */}
           {needsIOSPWA && (
             <div className="rounded-2xl border border-amberGold/25 bg-amberGold/5 p-4 text-xs text-parchment-200">
               <p className="font-serif font-medium text-amberGold-light">
@@ -152,9 +180,21 @@ export default function NotificationModal() {
                   Menüden <span className="font-semibold text-amberGold">“Ana Ekrana Ekle”</span> seçeneğini seçin.
                 </li>
                 <li>
-                  Ana ekranınıza eklenen <strong>Efes</strong> ikonuna basarak açın ve buradan bildirime izin verin.
+                  Ana ekranınıza eklenen <strong>Efes</strong> simgesine dokunarak açın ve buradan bildirime izin verin.
                 </li>
               </ol>
+            </div>
+          )}
+
+          {/* iOS Standalone Mode Tips */}
+          {isIOS && isStandalone && (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 text-xs text-parchment-300">
+              <p className="font-serif font-medium text-emerald-300">
+                📲 iPhone Ana Ekran Uygulaması Aktif
+              </p>
+              <p className="mt-1 text-[11px] text-parchment-400 leading-relaxed">
+                Bildirim gelmiyorsa: iPhone <strong>Ayarlar &gt; Bildirimler &gt; Efes</strong> menüsünde <em>“Kilitli Ekran”</em> ve <em>“Başlıklar”</em>ın açık olduğunu ve <em>Odak (Rahatsız Etmeyin)</em> modunun kapalı olduğunu kontrol edin.
+              </p>
             </div>
           )}
 
@@ -173,11 +213,11 @@ export default function NotificationModal() {
             </div>
           )}
 
-          {/* Regular Permission / Feature Description */}
+          {/* Regular Description */}
           {!needsIOSPWA && !isDenied && (
             <p className="text-xs leading-relaxed text-parchment-300">
               {displayName ? `${displayName}, ` : ""}
-              bildirimleri açtığında partnerin yeni bir hatıra paylaştığında, mühürlü mektup bıraktığında veya canlı bağlantı başlattığında telefonuna anında bildirim düşer.
+              bildirimler açık olduğunda partnerin yeni bir hatıra paylaştığında, mühürlü mektup bıraktığında veya canlı bağlantı başlattığında telefonuna anında bildirim düşer.
             </p>
           )}
         </div>
@@ -206,29 +246,42 @@ export default function NotificationModal() {
           )}
 
           {isGranted && (
-            <button
-              type="button"
-              onClick={handleTest}
-              disabled={testSending}
-              className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-2xl border border-amberGold/35 bg-amberGold/15 px-5 py-3 font-serif text-sm font-medium text-amberGold-light shadow-[0_4px_16px_rgba(224,169,109,0.15)] transition-all hover:bg-amberGold/25 hover:text-amberGold active:scale-[0.98] disabled:opacity-50"
-            >
-              {testSending ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin text-amberGold" />
-                  <span>Bildirim Gönderiliyor...</span>
-                </>
-              ) : testStatus === "success" ? (
-                <>
-                  <Check size={16} className="text-emerald-400" />
-                  <span className="text-emerald-300">Test Gönderildi! ✨</span>
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  <span>Test Bildirimi Gönder 💌</span>
-                </>
-              )}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleTest}
+                disabled={testSending || renewing}
+                className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-2xl border border-amberGold/35 bg-amberGold/15 px-5 py-3 font-serif text-sm font-medium text-amberGold-light shadow-[0_4px_16px_rgba(224,169,109,0.15)] transition-all hover:bg-amberGold/25 hover:text-amberGold active:scale-[0.98] disabled:opacity-50"
+              >
+                {testSending ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin text-amberGold" />
+                    <span>Gönderiliyor...</span>
+                  </>
+                ) : testStatus === "success" ? (
+                  <>
+                    <Check size={16} className="text-emerald-400" />
+                    <span className="text-emerald-300">Test Gönderildi! ✨</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    <span>Test Bildirimi Gönder 💌</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRenew}
+                disabled={renewing || testSending}
+                title="Abonelik anahtarını sıfırla ve yeniden eşitle"
+                className="focus-ring flex items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 font-serif text-xs text-parchment-300 transition hover:bg-white/[0.08] hover:text-parchment-100 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={renewing ? "animate-spin text-amberGold" : "text-parchment-400"} />
+                <span>{renewing ? "Yenileniyor..." : "Yenile"}</span>
+              </button>
+            </>
           )}
 
           <button
@@ -243,3 +296,4 @@ export default function NotificationModal() {
     </div>
   );
 }
+
