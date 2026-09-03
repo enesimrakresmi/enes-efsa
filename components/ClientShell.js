@@ -15,7 +15,7 @@ export default function ClientShell({ children }) {
         <PushAutoSubscribe />
         <NotificationModal />
         <Navigation />
-        <main className="min-h-screen px-2 pb-24 pt-14 sm:px-6 sm:pb-28 sm:pt-6 md:ml-20 md:px-10 md:pb-8 md:pt-6">
+        <main className="min-h-screen px-2 pb-24 pt-3 sm:px-6 sm:pb-28 sm:pt-6 md:ml-20 md:px-10 md:pb-8 md:pt-6">
           {children}
         </main>
       </NotificationProvider>

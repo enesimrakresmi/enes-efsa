@@ -26,62 +26,6 @@ export default function Navigation() {
 
   return (
     <>
-      {/* Mobile Top Header Bar */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-amberGold/15 bg-[#120f0e]/90 px-3.5 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] pb-2.5 backdrop-blur-xl md:hidden">
-        {/* Brand Logo & Name */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-amberGold/30 bg-[#171210] shadow-[0_2px_8px_rgba(224,169,109,0.15)]">
-            <img src="/icon.png" alt="Efes" className="h-7 w-7 object-contain" />
-          </div>
-          <span className="font-serif text-base font-medium tracking-wide text-parchment-100">
-            EfEs
-          </span>
-        </Link>
-
-        {/* Right Actions: Notification Button + User Pill */}
-        <div className="flex items-center gap-2">
-          {/* Notification Quick Button */}
-          <button
-            type="button"
-            onClick={openModal}
-            aria-label="Bildirim Ayarları"
-            className={`focus-ring relative flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-all active:scale-95 ${
-              isGranted
-                ? "border-amberGold/25 bg-amberGold/10 text-amberGold-light hover:bg-amberGold/20"
-                : "border-amberGold/50 bg-gradient-to-r from-amberGold/20 to-amberGold/10 text-amberGold shadow-[0_0_12px_rgba(224,169,109,0.25)] animate-pulse"
-            }`}
-          >
-            <Bell size={13} className={isGranted ? "text-amberGold" : "text-amberGold"} />
-            <span className="font-serif text-[11px]">
-              {isGranted ? "Bildirimler Açık" : "Bildirim İzni Ver"}
-            </span>
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                isGranted ? "bg-emerald-400 shadow-[0_0_6px_#34d399]" : "bg-amberGold shadow-[0_0_6px_#e0a96d]"
-              }`}
-            />
-          </button>
-
-          {/* User Badge */}
-          <div className="flex h-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-2.5">
-            <span className="font-serif text-[11px] font-medium text-parchment-200">
-              {displayName}
-            </span>
-          </div>
-
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Çıkış Yap"
-            title="Çıkış Yap"
-            className="focus-ring flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-parchment-400 transition hover:bg-dustyRose/15 hover:text-dustyRose"
-          >
-            <LogOut size={13} />
-          </button>
-        </div>
-      </header>
-
       {/* Mobile Floating Bottom Dock (Icons Only) */}
       <nav className="fixed bottom-[calc(0.6rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-50 md:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 items-center rounded-2xl border border-amberGold/25 bg-[#14100e]/95 p-1.5 shadow-[0_18px_45px_rgba(0,0,0,0.75)] backdrop-blur-xl">
